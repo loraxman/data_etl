@@ -39,17 +39,20 @@ class Job:
 				#if there is no pid for this wait step
 				#it probably was done Sync
 				if self.step_pids.has_key(wstep):
-					wpid = self.step_pids[wstep]
-					print "Step %s waits on %s, %d" % (step.name,wstep, wpid.pid,)
-					wpid.join()
+					for wpid in self.step_pids[wstep]:
+#						wpid = self.step_pids[wstep]
+						print "Step %s waits on %s, %d" % (step.name,wstep, wpid.pid,)
+						wpid.join()
 				else:
 					print "missing pid %s" % (wstep,)
 				
 			if step.steptype == "SQL":
 				if step.async:
-					p = multiprocessing.Process(target=execstep, args=(self.queue,step.file,step,))
+					p = multiprocessing.Process(target=execstep, args=(self.queue,step.file,step,self.step_pids))
 					self.pids.append(p)
-					self.step_pids[step.name] = p
+					if not (self.step_pids.has_key(step.name)):
+						self.step_pids[step.name] = []
+					self.step_pids[step.name].append(p)
 					p.start()
 					print "started step %s" % (step.file)
 				else:
@@ -96,8 +99,12 @@ class StepQueueEntry:
 		
 		
 		
-def execstep(queue=None, script=None,step=None):
-
+def execstep(queue=None, script=None,step=None,step_pids=None):
+	print step_pids
+	for wpid in step_pids[step.name]:
+		print wpid
+		#wpid.join()
+		
 	sql = open(script).read()
 	conn = psycopg2.connect("dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'")
 	cur = conn.cursor()

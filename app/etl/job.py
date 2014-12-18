@@ -3,13 +3,14 @@ import threading
 import multiprocessing
 import psycopg2
 import yaml
- 
+import Queue
 
 class Job:
 	def __init__(self):
 		
 		self.steps = []
 		self.queue =  multiprocessing.Queue()
+		self.queue =  Queue.Queue()
 		self.pids = []
 		self.step_pids = {}
 	
@@ -40,15 +41,17 @@ class Job:
 				#it probably was done Sync
 				if self.step_pids.has_key(wstep):
 					for wpid in self.step_pids[wstep]:
+						pass
 #						wpid = self.step_pids[wstep]
-						print "Step %s waits on %s, %d" % (step.name,wstep, wpid.pid,)
-						wpid.join()
+		#				print "Step %s waits on %s" % (step.name,wstep)
+					#	wpid.join()
 				else:
 					print "missing pid %s" % (wstep,)
 				
 			if step.steptype == "SQL":
 				if step.async:
-					p = multiprocessing.Process(target=execstep, args=(self.queue,step.file,step,self.step_pids))
+					p = threading.Thread(target=execstep, args=(self.queue,step.file,step,self.step_pids))
+#					p = multiprocessing.Process(target=execstep, args=(self.queue,step.file,step,self.step_pids))
 					self.pids.append(p)
 					if not (self.step_pids.has_key(step.name)):
 						self.step_pids[step.name] = []
@@ -62,7 +65,8 @@ class Job:
 				unittest = __import__(step.file)
 
 				if step.async:
-					p = multiprocessing.Process(target=unittest.execstep, args=(self.queue,step,))
+					p = threading.Thread(target=unittest.execstep, args=(self.queue,step,self.step_pids))
+#					p = multiprocessing.Process(target=unittest.execstep, args=(self.queue,step,))
 					self.pids.append(p)
 					p.start()
 					print "started step %s" % (step.file)
@@ -100,10 +104,11 @@ class StepQueueEntry:
 		
 		
 def execstep(queue=None, script=None,step=None,step_pids=None):
-	print step_pids
-	for wpid in step_pids[step.name]:
-		print wpid
-		#wpid.join()
+
+	for wstep in step.wait_steps:
+		for wpid in step_pids[wstep]:
+			print "Step %s waits on %s" % ( step.name, wstep)
+			wpid.join()
 		
 	sql = open(script).read()
 	conn = psycopg2.connect("dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'")

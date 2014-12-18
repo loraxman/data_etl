@@ -22,8 +22,7 @@ class Job:
 		stepdict = ymlhash['job']['steps']
 		
 		#sort yaml by step name so to preserve sequence
-		d1 = sorted(stepdict, key=lambda key: stepdict[key])
-		
+		d1 = sorted(stepdict)
 		for step in d1:
 			item = stepdict[step]
 			s = Step(item['name'], item['type'],item['file'], item['async'], item['err'])
@@ -35,10 +34,16 @@ class Job:
 		
 	def execute(self):
 		for step in self.steps:
+			print "sequencing...%s" % (step.name)
 			for wstep in step.wait_steps:
-				wpid = self.step_pids[wstep]
-				print "Step %s waits on %d" % (step.name,wpid.pid,)
-				wpid.join()
+				#if there is no pid for this wait step
+				#it probably was done Sync
+				if self.step_pids.has_key(wstep):
+					wpid = self.step_pids[wstep]
+					print "Step %s waits on %s, %d" % (step.name,wstep, wpid.pid,)
+					wpid.join()
+				else:
+					print "missing pid %s" % (wstep,)
 				
 			if step.steptype == "SQL":
 				if step.async:

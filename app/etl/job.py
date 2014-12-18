@@ -46,7 +46,8 @@ class Job:
 		#				print "Step %s waits on %s" % (step.name,wstep)
 					#	wpid.join()
 				else:
-					print "missing pid %s" % (wstep,)
+#					print "missing pid %s" % (wstep,)
+					pass
 				
 			if step.steptype == "SQL":
 				if step.async:
@@ -79,7 +80,7 @@ class Job:
 			#print "wait on pid %d " %(pid.pid,)
 			pid.join()
 			sq  = self.queue.get()
-			print "Returned %s,%d" % (sq.step.name,sq.return_value)
+			print "\n\t\tReturned %s,%d" % (sq.step.name,sq.return_value)
 			
 		
 class Step:
@@ -110,7 +111,7 @@ def execstep(queue=None, script=None,step=None,step_pids=None):
 		for wpid in step_pids[wstep]:
 			print "........Step %s waits on %s" % ( step.name, wstep)
 			wpid.join()
-	print "started step %s" % (step.name)
+	print "\nstarted step %s" % (step.name)
 	
 	sql = open(script).read()
 	conn = psycopg2.connect("dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'")

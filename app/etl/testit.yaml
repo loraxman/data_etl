@@ -1,0 +1,26 @@
+job:
+  name: Job1
+  steps: 
+    step1:
+      name: step1  
+      type: SQL
+      file: sample1.sql
+      async: True
+      err: None  
+    step2:
+      name: step2
+      type: SQL
+      file: sample1.sql
+      async: True
+      err: None  
+      waits_on:
+        - step1
+    step3:
+      name: step3
+      type: python
+      file: imported
+      async: True
+      err: None  
+      waits_on:
+        - step1
+      

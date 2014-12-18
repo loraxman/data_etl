@@ -2,15 +2,36 @@
 import threading
 import multiprocessing
 import psycopg2
+import yaml
  
 
 class Job:
-	def __init__(self,name):
-		self.name = name
+	def __init__(self):
+		
 		self.steps = []
 		self.queue =  multiprocessing.Queue()
 		self.pids = []
 		self.step_pids = {}
+	
+		
+	def loadyaml(self,yamlf):
+		content = open(yamlf).read()
+		
+		ymlhash = yaml.load(content)
+		self.name = ymlhash['job']['name'] 
+		stepdict = ymlhash['job']['steps']
+		
+		#sort yaml by step name so to preserve sequence
+		d1 = sorted(stepdict, key=lambda key: stepdict[key])
+		
+		for step in d1:
+			item = stepdict[step]
+			s = Step(item['name'], item['type'],item['file'], item['async'], item['err'])
+			if item.has_key('waits_on'):
+				for wait in item['waits_on']:
+					s.wait_on(wait.strip())
+			self.steps.append(s)
+	
 		
 	def execute(self):
 		for step in self.steps:
@@ -58,7 +79,6 @@ class Step:
 		self.error = error
 		self.wait_pids = []
 		self.wait_steps = []
-		print self.async
 		
 	def wait_on(self,step_name):
 		self.wait_steps.append(step_name)

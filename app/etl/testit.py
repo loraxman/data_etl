@@ -1,6 +1,10 @@
 from job import *
+import sys
 
-j = Job('test')
+j = Job()
+j.loadyaml("testit.yaml")
+j.execute()
+sys.exit()
 s = Step('sql1',"SQL",'sample.sql',False,'err')
 j.steps.append(s)
 s = Step('sql2',"SQL",'sample2.sql',True,'err')

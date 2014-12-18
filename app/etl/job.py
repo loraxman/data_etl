@@ -35,7 +35,6 @@ class Job:
 		
 	def execute(self):
 		for step in self.steps:
-			print "sequencing...%s" % (step.name)
 			for wstep in step.wait_steps:
 				#if there is no pid for this wait step
 				#it probably was done Sync
@@ -57,9 +56,9 @@ class Job:
 						self.step_pids[step.name] = []
 					self.step_pids[step.name].append(p)
 					p.start()
-					print "started step %s" % (step.file)
+					print "started step %s" % (step.name)
 				else:
-					print "started step %s" % (step.file)
+					print "started step %s" % (step.name)
 					execstep(self.queue,step.file,step)
 			elif step.steptype == 'python':
 				unittest = __import__(step.file)
@@ -69,9 +68,9 @@ class Job:
 #					p = multiprocessing.Process(target=unittest.execstep, args=(self.queue,step,))
 					self.pids.append(p)
 					p.start()
-					print "started step %s" % (step.file)
+					print "started step %s" % (step.name)
 				else:
-					print "started step %s" % (step.file)
+					print "started step %s" % (step.name)
 					unittest.exestep(self.queue, step)
 
 				
@@ -107,7 +106,7 @@ def execstep(queue=None, script=None,step=None,step_pids=None):
 
 	for wstep in step.wait_steps:
 		for wpid in step_pids[wstep]:
-			print "Step %s waits on %s" % ( step.name, wstep)
+			print "........Step %s waits on %s" % ( step.name, wstep)
 			wpid.join()
 		
 	sql = open(script).read()

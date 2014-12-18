@@ -1,2 +1,2 @@
-select * from claims limit 100;
+select * from claims limit 1000;
 

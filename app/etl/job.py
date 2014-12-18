@@ -27,7 +27,8 @@ class Job:
 					p.start()
 					print "started step %s" % (step.file)
 				else:
-					dbscript.execstep(step.sqlfile)
+					print "started step %s" % (step.file)
+					execstep(self.queue,step.file,step)
 			elif step.steptype == 'python':
 				unittest = __import__(step.file)
 
@@ -37,6 +38,7 @@ class Job:
 					p.start()
 					print "started step %s" % (step.file)
 				else:
+					print "started step %s" % (step.file)
 					unittest.exestep(self.queue, step)
 
 				
@@ -56,6 +58,7 @@ class Step:
 		self.error = error
 		self.wait_pids = []
 		self.wait_steps = []
+		print self.async
 		
 	def wait_on(self,step_name):
 		self.wait_steps.append(step_name)

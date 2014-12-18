@@ -35,6 +35,7 @@ class Job:
 		
 	def execute(self):
 		for step in self.steps:
+			#note below loop only used for Process based
 			for wstep in step.wait_steps:
 				#if there is no pid for this wait step
 				#it probably was done Sync
@@ -56,7 +57,7 @@ class Job:
 						self.step_pids[step.name] = []
 					self.step_pids[step.name].append(p)
 					p.start()
-					print "started step %s" % (step.name)
+#					print "started step %s" % (step.name)
 				else:
 					print "started step %s" % (step.name)
 					execstep(self.queue,step.file,step)
@@ -68,7 +69,7 @@ class Job:
 #					p = multiprocessing.Process(target=unittest.execstep, args=(self.queue,step,))
 					self.pids.append(p)
 					p.start()
-					print "started step %s" % (step.name)
+#					print "started step %s" % (step.name)
 				else:
 					print "started step %s" % (step.name)
 					unittest.exestep(self.queue, step)
@@ -103,12 +104,14 @@ class StepQueueEntry:
 		
 		
 def execstep(queue=None, script=None,step=None,step_pids=None):
-
+	#below for threading only
+	#wait on another thread(s) to finish
 	for wstep in step.wait_steps:
 		for wpid in step_pids[wstep]:
 			print "........Step %s waits on %s" % ( step.name, wstep)
 			wpid.join()
-		
+	print "started step %s" % (step.name)
+	
 	sql = open(script).read()
 	conn = psycopg2.connect("dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'")
 	cur = conn.cursor()

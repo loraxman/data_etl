@@ -10,7 +10,7 @@ job:
     step2:
       name: step2
       type: SQL
-      file: sample1.sql
+      file: sample2.sql
       async: True
       err: None  
       waits_on:
@@ -22,5 +22,20 @@ job:
       async: True
       err: None  
       waits_on:
+        - step2
+    step4:
+      name: step4  
+      type: SQL
+      file: sample1.sql
+      async: True
+      err: None
+      waits_on:
         - step1
+        - step2 
+    step5:
+      name: step5
+      type: SQL
+      file: sample2.sql
+      async: True
+      err: None  
       

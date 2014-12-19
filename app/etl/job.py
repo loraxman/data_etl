@@ -4,16 +4,28 @@ import multiprocessing
 import psycopg2
 import yaml
 import Queue
+import jsonpickle
 
+
+#Job class is a group of steps that can be executed in order as defined
+#externally.
+#Implements the threaded version
 class Job:
 	def __init__(self):
 		
 		self.steps = []
+		#below reference to mulitprocessing is
+		#for a version that would use multi-processes to work
+		#currently not used, has an issue regarding child steps waiting on other child steps
+		#threads addresses this issue fine, but child procs can't wait on other child procs
 		self.queue =  multiprocessing.Queue()
+		#Thread queue for returning results back to main controller
 		self.queue =  Queue.Queue()
 		self.pids = []
 		self.step_pids = {}
 	
+	def json(self):
+		return jsonpickle.encode(self)
 		
 	def loadyaml(self,yamlf):
 		content = open(yamlf).read()
@@ -26,16 +38,17 @@ class Job:
 		d1 = sorted(stepdict)
 		for step in d1:
 			item = stepdict[step]
-			s = Step(item['name'], item['type'],item['file'], item['async'], item['err'])
+			s = Step(item['name'], item['type'],item['file'], item['async'], item['err'],item['description'])
 			if item.has_key('waits_on'):
 				for wait in item['waits_on']:
 					s.wait_on(wait.strip())
 			self.steps.append(s)
 	
-		
+	#execute the Job
 	def execute(self):
 		for step in self.steps:
 			#note below loop only used for Process based
+			#currenlty does nothing!
 			for wstep in step.wait_steps:
 				#if there is no pid for this wait step
 				#it probably was done Sync
@@ -60,20 +73,20 @@ class Job:
 					p.start()
 #					print "started step %s" % (step.name)
 				else:
-					print "started step %s" % (step.name)
+					print "started step %s" % (step.name,self.step_pids)
 					execstep(self.queue,step.file,step)
 			elif step.steptype == 'python':
-				unittest = __import__(step.file)
+				pymod = __import__(step.file)
 
 				if step.async:
-					p = threading.Thread(target=unittest.execstep, args=(self.queue,step,self.step_pids))
+					p = threading.Thread(target=pymod.execstep, args=(self.queue,step,self.step_pids))
 #					p = multiprocessing.Process(target=unittest.execstep, args=(self.queue,step,))
 					self.pids.append(p)
 					p.start()
 #					print "started step %s" % (step.name)
 				else:
-					print "started step %s" % (step.name)
-					unittest.exestep(self.queue, step)
+					print "started step %s" % (step.name,self.step_pids)
+					pymod.exestep(self.queue, step)
 
 				
 		for pid in self.pids:
@@ -82,9 +95,13 @@ class Job:
 			sq  = self.queue.get()
 			print "\n\t\tReturned %s,%d" % (sq.step.name,sq.return_value)
 			
-		
+	
+#Step is an executable unit of work
+#typically will be a sql script
+#can also be a python script
+#all assume an interface call "execstep"	
 class Step:
-	def __init__(self,name,steptype, file,async=False,error=None):
+	def __init__(self,name,steptype, file,async=False,error=None,description=None):
 		self.name = name
 		self.steptype = steptype
 		self.file = file
@@ -92,6 +109,8 @@ class Step:
 		self.error = error
 		self.wait_pids = []
 		self.wait_steps = []
+		self.description = description
+
 		
 	def wait_on(self,step_name):
 		self.wait_steps.append(step_name)

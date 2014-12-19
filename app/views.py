@@ -4,11 +4,25 @@ import random
 from flask import render_template
 import urllib2
 import models
+import jsonpickle
+from etl.job import Job
+
 @app.route('/')
 @app.route('/index')
 def index():
   return "hwlo!"
 
+
+@app.route("/jobs")
+def index_jobs():
+	#load up yaml
+	#return job as json
+	joblist = []
+	j = Job()
+	j.loadyaml("app/etl/testit.yaml")	
+	joblist.append(j)
+	return jsonpickle.encode(joblist)
+	
 @app.route("/some_json")
 def some_json():
   

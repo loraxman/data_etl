@@ -17,6 +17,7 @@ job:
       err: None  
       waits_on:
         - step1
+ 
     step3:
       name: step3
       type: python
@@ -37,11 +38,4 @@ job:
       err: None
       waits_on:
         - step1 
-    step5:
-      name: step5
-      type: SQL
-      file: sample2.sql
-      description: A fourth SQL   
-      async: True
-      err: None  
       

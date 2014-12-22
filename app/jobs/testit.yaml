@@ -1,5 +1,5 @@
 job:
-  name: Job1
+  name: Job2
   steps: 
     step1:
       name: step1  
@@ -17,6 +17,7 @@ job:
       err: None  
       waits_on:
         - step1
+        - step5
     step3:
       name: step3
       type: python

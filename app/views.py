@@ -6,6 +6,8 @@ import urllib2
 import models
 import jsonpickle
 from etl.job import Job
+import flask
+import os
 
 @app.route('/')
 @app.route('/index')
@@ -18,9 +20,12 @@ def index_jobs():
 	#load up yaml
 	#return job as json
 	joblist = []
-	j = Job()
-	j.loadyaml("app/etl/testit.yaml")	
-	joblist.append(j)
+	jobdir = os.path.join(app.root_path,flask.current_app.config['JOBDIR'])
+	jobfiles = os.listdir(jobdir)
+	for job in jobfiles:
+		j = Job()
+		j.loadyaml(jobdir+"/"+job)	
+		joblist.append(j)
 	return jsonpickle.encode(joblist)
 	
 @app.route("/some_json")

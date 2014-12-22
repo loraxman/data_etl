@@ -42,8 +42,11 @@ class Job:
 			if item.has_key('waits_on'):
 				for wait in item['waits_on']:
 					s.wait_on(wait.strip())
+			s.job = self
 			self.steps.append(s)
-	
+		for step in self.steps:
+			step.waiting_on_step()
+				
 	#execute the Job
 	def execute(self):
 		for step in self.steps:
@@ -101,7 +104,7 @@ class Job:
 #can also be a python script
 #all assume an interface call "execstep"	
 class Step:
-	def __init__(self,name,steptype, file,async=False,error=None,description=None):
+	def __init__(self,name,steptype, file,async=False,error=None,description=None,job=None):
 		self.name = name
 		self.steptype = steptype
 		self.file = file
@@ -110,10 +113,24 @@ class Step:
 		self.wait_pids = []
 		self.wait_steps = []
 		self.description = description
+		self.job=job
+		self.waiting_on = []
 
 		
 	def wait_on(self,step_name):
 		self.wait_steps.append(step_name)
+		
+	def waiting_on_step(self):
+		self.waiting_on = []
+		#who waits on me?
+		for step in self.job.steps:
+			if (step.name != self.name):
+				for wait in step.wait_steps:
+					if wait == self.name:
+						self.waiting_on.append(step.name)
+		
+		
+		
 	
 class StepQueueEntry:
 	def __init__(self, step, return_value):

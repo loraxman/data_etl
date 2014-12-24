@@ -5,6 +5,7 @@ import psycopg2
 import yaml
 import Queue
 import jsonpickle
+import sys
 
 
 #Job class is a group of steps that can be executed in order as defined
@@ -24,12 +25,20 @@ class Job:
 		self.pids = []
 		self.step_pids = {}
 	
+	def active_steps(self):
+		active = []
+		for step in steps:
+			if step.active:
+				active.append(step.name)
+		return active
+	
 	def json(self):
 		return jsonpickle.encode(self)
 		
 	def loadyaml(self,yamlf):
+		self.yamlfile = yamlf
 		content = open(yamlf).read()
-		
+		print content
 		ymlhash = yaml.load(content)
 		self.name = ymlhash['job']['name'] 
 		stepdict = ymlhash['job']['steps']
@@ -79,7 +88,14 @@ class Job:
 					print "started step %s" % (step.name,self.step_pids)
 					execstep(self.queue,step.file,step)
 			elif step.steptype == 'python':
-				pymod = __import__(step.file)
+				#find path of file
+				paths=step.file.split("/")
+				endpath=paths[len(paths)-1]
+				subpath=step.file[0:step.file.index(endpath)]
+				print subpath
+				sys.path.append(subpath)
+
+				pymod = __import__(endpath)
 
 				if step.async:
 					p = threading.Thread(target=pymod.execstep, args=(self.queue,step,self.step_pids))
@@ -97,6 +113,7 @@ class Job:
 			pid.join()
 			sq  = self.queue.get()
 			print "\n\t\tReturned %s,%d" % (sq.step.name,sq.return_value)
+			step.active=False
 			
 	
 #Step is an executable unit of work
@@ -115,6 +132,7 @@ class Step:
 		self.description = description
 		self.job=job
 		self.waiting_on = []
+		self.active = False
 
 		
 	def wait_on(self,step_name):
@@ -143,6 +161,7 @@ class StepQueueEntry:
 def execstep(queue=None, script=None,step=None,step_pids=None):
 	#below for threading only
 	#wait on another thread(s) to finish
+	step.active=True
 	for wstep in step.wait_steps:
 		for wpid in step_pids[wstep]:
 			print "........Step %s waits on %s" % ( step.name, wstep)

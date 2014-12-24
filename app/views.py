@@ -7,7 +7,15 @@ import models
 import jsonpickle
 from etl.job import Job
 import flask
+import threading
+import multiprocessing
 import os
+import subprocess
+import sys
+from flask import request
+import celery
+
+import tasks
 
 @app.route('/')
 @app.route('/index')
@@ -27,7 +35,38 @@ def index_jobs():
 		j.loadyaml(jobdir+"/"+job)	
 		joblist.append(j)
 	return jsonpickle.encode(joblist)
+
+
+@app.route("/jobs/execute")
+def execute_job():
+	jobfile=request.args.get('jobfile')
+	j = Job()
+	j.loadyaml(jobfile)
+	print "started job:" + j.name
+	#j.execute()
+	tasks.startjob.delay(jobfile)
+	return "OK"
+
+@app.route("/jobs/active")
+def active_jobs():
+	#load up yaml
+	#return job as json
+	joblist = []
+	jobdir = os.path.join(app.root_path,flask.current_app.config['JOBDIR'])
+	jobfiles = os.listdir(jobdir)
+	for job in jobfiles:
+		j = Job()
+		j.loadyaml(jobdir+"/"+job)	
+		joblist.append(j)
+	return jsonpickle.encode(joblist)
+
 	
+
+
+
+
+
+
 @app.route("/some_json")
 def some_json():
   

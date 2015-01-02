@@ -2,6 +2,7 @@ from job import StepQueueEntry
 import time
 
 def execstep(queue=None,step=None,step_pids=None):
+	step.active=True
 
 	for wstep in step.wait_steps:
 		for wpid in step_pids[wstep]:

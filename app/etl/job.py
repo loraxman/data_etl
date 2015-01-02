@@ -28,15 +28,16 @@ class Job:
 		self.redis = redis
 		self.monitor_alive = True
 		
-	
+	#keyed by filename then list of running jobs
 	def monitor_persist(self):
 		while self.monitor_alive:
+			jobsteps = []
 			active = self.active_steps()
 			print self.job_id, active
-			self.redis.set(self.job_id, active)
+			self.redis.set(self.yamlfile+";" + str(self.job_id), active)
 
 			time.sleep(5)
-		self.redis.delete(self.job_id)
+		self.redis.delete(self.yamlfile+";" + str(self.job_id))
 		
 	def active_steps(self):
 		active = []
@@ -125,13 +126,16 @@ class Job:
 					print "started step %s" % (step.name,self.step_pids)
 					pymod.exestep(self.queue, step)
 
-				
-		for pid in self.pids:
+		pidlen = len(self.pids)
+		deque = 0		
+		while(deque < pidlen):
 			#print "wait on pid %d " %(pid.pid,)
-			pid.join()
+			#pid.join()
 			sq  = self.queue.get()
-			print "\n\t\tReturned %s,%d" % (sq.step.name,sq.return_value)
-			step.active=False
+			if (sq != None):
+				print "\n\t\tReturned %s,%d" % (sq.step.name,sq.return_value)
+				sq.step.active=False
+				deque += 1
 		self.monitor_alive = False
 		
 	

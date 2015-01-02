@@ -3,7 +3,7 @@ from app.etl import job
 import os
 import flask
 from flask.ext.celery import Celery
-
+import redis
 
 #from .run import get_celery
 
@@ -16,7 +16,8 @@ celery = Celery('tasks', broker='redis://localhost:6379/0')
 
 @celery.task()
 def startjob(jobfile):
-	j = job.Job()
+	redisconn = redis.StrictRedis(host='localhost', port=6379, db=0)
+	j = job.Job(redisconn)
 	j.loadyaml(jobfile)
 	print "started job:" + j.name
 	j.execute()

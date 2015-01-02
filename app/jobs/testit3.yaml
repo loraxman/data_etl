@@ -1,6 +1,6 @@
 job:
-  name: Job1
-  description: Python scripts and sql
+  name: Job3
+  description: Process claims into clusters
   steps: 
     step1:
       name: step1  
@@ -27,9 +27,8 @@ job:
       async: True
       err: None  
       waits_on:
-        - step1
         - step2
-        - step4
+       
     step4:
       name: step4  
       type: SQL
@@ -37,6 +36,5 @@ job:
       description: A third SQL      
       async: True
       err: None
-      waits_on:
-        - step1 
+        
       

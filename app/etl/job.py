@@ -6,13 +6,14 @@ import yaml
 import Queue
 import jsonpickle
 import sys
+import time
 
 
 #Job class is a group of steps that can be executed in order as defined
 #externally.
 #Implements the threaded version
 class Job:
-	def __init__(self):
+	def __init__(self,redis):
 		
 		self.steps = []
 		#below reference to mulitprocessing is
@@ -24,10 +25,22 @@ class Job:
 		self.queue =  Queue.Queue()
 		self.pids = []
 		self.step_pids = {}
+		self.redis = redis
+		self.monitor_alive = True
+		
 	
+	def monitor_persist(self):
+		while self.monitor_alive:
+			active = self.active_steps()
+			print self.job_id, active
+			self.redis.set(self.job_id, active)
+
+			time.sleep(5)
+		self.redis.delete(self.job_id)
+		
 	def active_steps(self):
 		active = []
-		for step in steps:
+		for step in self.steps:
 			if step.active:
 				active.append(step.name)
 		return active
@@ -42,7 +55,7 @@ class Job:
 		ymlhash = yaml.load(content)
 		self.name = ymlhash['job']['name'] 
 		stepdict = ymlhash['job']['steps']
-		
+		self.description = ymlhash['job']['description']
 		#sort yaml by step name so to preserve sequence
 		d1 = sorted(stepdict)
 		for step in d1:
@@ -58,6 +71,11 @@ class Job:
 				
 	#execute the Job
 	def execute(self):
+		#job id
+		self.job_id = int(time.time()) 
+		pmon = threading.Thread(target=self.monitor_persist, args=())
+		pmon.start();
+		#start monitor thread
 		for step in self.steps:
 			#note below loop only used for Process based
 			#currenlty does nothing!
@@ -114,7 +132,8 @@ class Job:
 			sq  = self.queue.get()
 			print "\n\t\tReturned %s,%d" % (sq.step.name,sq.return_value)
 			step.active=False
-			
+		self.monitor_alive = False
+		
 	
 #Step is an executable unit of work
 #typically will be a sql script

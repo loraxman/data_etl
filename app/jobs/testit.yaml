@@ -1,5 +1,6 @@
 job:
   name: Job2
+  description: Some sql scripts
   steps: 
     step1:
       name: step1  

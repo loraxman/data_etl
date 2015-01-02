@@ -27,11 +27,12 @@ def index():
 def index_jobs():
 	#load up yaml
 	#return job as json
+	redis = None
 	joblist = []
 	jobdir = os.path.join(app.root_path,flask.current_app.config['JOBDIR'])
 	jobfiles = os.listdir(jobdir)
 	for job in jobfiles:
-		j = Job()
+		j = Job(redis)
 		j.loadyaml(jobdir+"/"+job)	
 		joblist.append(j)
 	return jsonpickle.encode(joblist)
@@ -40,7 +41,7 @@ def index_jobs():
 @app.route("/jobs/execute")
 def execute_job():
 	jobfile=request.args.get('jobfile')
-	j = Job()
+	j = Job(None)
 	j.loadyaml(jobfile)
 	print "started job:" + j.name
 	#j.execute()

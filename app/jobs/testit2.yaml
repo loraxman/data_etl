@@ -1,5 +1,6 @@
 job:
   name: Job1
+  jobtype: script
   description: Python scripts and sql
   steps: 
     step1:

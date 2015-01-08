@@ -30,14 +30,16 @@ class Job:
 		
 	#keyed by filename then list of running jobs
 	def monitor_persist(self):
+		if self.redis == None:
+			return
 		while self.monitor_alive:
 			jobsteps = []
 			active = self.active_steps()
-			print self.job_id, active
-			self.redis.set(self.yamlfile+";" + str(self.job_id), active)
+	#		print self.job_id, active
+			self.redis.hset(self.yamlfile,  str(self.job_id), active)
 
 			time.sleep(5)
-		self.redis.delete(self.yamlfile+";" + str(self.job_id))
+		self.redis.delete(self.yamlfile, str(self.job_id))
 		
 	def active_steps(self):
 		active = []
@@ -52,11 +54,12 @@ class Job:
 	def loadyaml(self,yamlf):
 		self.yamlfile = yamlf
 		content = open(yamlf).read()
-		print content
+#		print content
 		ymlhash = yaml.load(content)
 		self.name = ymlhash['job']['name'] 
 		stepdict = ymlhash['job']['steps']
 		self.description = ymlhash['job']['description']
+		self.jobtype = ymlhash['job']['jobtype']
 		#sort yaml by step name so to preserve sequence
 		d1 = sorted(stepdict)
 		for step in d1:
@@ -104,14 +107,14 @@ class Job:
 					p.start()
 #					print "started step %s" % (step.name)
 				else:
-					print "started step %s" % (step.name,self.step_pids)
+			#		print "started step %s" % (step.name,self.step_pids)
 					execstep(self.queue,step.file,step)
 			elif step.steptype == 'python':
 				#find path of file
 				paths=step.file.split("/")
 				endpath=paths[len(paths)-1]
 				subpath=step.file[0:step.file.index(endpath)]
-				print subpath
+		#		print subpath
 				sys.path.append(subpath)
 
 				pymod = __import__(endpath)
@@ -123,20 +126,23 @@ class Job:
 					p.start()
 #					print "started step %s" % (step.name)
 				else:
-					print "started step %s" % (step.name,self.step_pids)
+				#	print "started step %s" % (step.name,self.step_pids)
 					pymod.exestep(self.queue, step)
 
 		pidlen = len(self.pids)
 		deque = 0		
+		job_status = []
 		while(deque < pidlen):
 			#print "wait on pid %d " %(pid.pid,)
 			#pid.join()
 			sq  = self.queue.get()
 			if (sq != None):
-				print "\n\t\tReturned %s,%d" % (sq.step.name,sq.return_value)
+#				print "\n\t\tReturned %s,%s" % (sq.step.name,sq.return_value)
 				sq.step.active=False
+				job_status.append(sq)
 				deque += 1
 		self.monitor_alive = False
+		return job_status
 		
 	
 #Step is an executable unit of work
@@ -187,17 +193,25 @@ def execstep(queue=None, script=None,step=None,step_pids=None):
 	step.active=True
 	for wstep in step.wait_steps:
 		for wpid in step_pids[wstep]:
-			print "........Step %s waits on %s" % ( step.name, wstep)
+		#	print "........Step %s waits on %s" % ( step.name, wstep)
 			wpid.join()
-	print "\nstarted step %s" % (step.name)
+	#print "\nstarted step %s" % (step.name)
 	
-	sql = open(script).read()
-	conn = psycopg2.connect("dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'")
-	cur = conn.cursor()
-	
-	cur.execute(sql)
-
-	rowcnt = cur.rowcount
-	sq = StepQueueEntry (step,rowcnt)
+	status = "FAIL"
+	try:
+		sql = open(script).read()
+		conn = psycopg2.connect("dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'")
+		cur = conn.cursor()
+	#	print sql
+		cur.execute(sql)
+		#fetch all
+		#we will assume the first row/col is the result "PASS"/"FAIL"
+		rows = cur.fetchall()
+		status = rows[0][0]
+	except Exception as inst:
+		print "Error:%s" % inst
+		status = "FAIL"
+		
+	sq = StepQueueEntry (step,status)
 	queue.put(sq)	
 

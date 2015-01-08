@@ -1,5 +1,6 @@
 job:
   name: Job3
+  jobtype: script
   description: Process claims into clusters
   steps: 
     step1:

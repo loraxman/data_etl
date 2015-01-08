@@ -1,2 +1,5 @@
-select * from claims limit 1000;
+update rev_code set category = category where 1=2;
+select 'PASS' as status;
+
+
 

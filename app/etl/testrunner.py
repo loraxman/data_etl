@@ -30,6 +30,7 @@ class TestRunner:
 			for stat in ret_status:
 				print "%s\t%s\n" % (stat.return_value,stat.step.description)
 		TestRunner.print_results(runjobs)
+		return runjobs
 	
 	@staticmethod
 	def print_results(jobs):

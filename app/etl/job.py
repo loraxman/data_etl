@@ -187,7 +187,7 @@ class StepQueueEntry:
 		
 		
 		
-def execstep(queue=None, script=None,step=None,step_pids=None):
+def execstep(queue=None, script=None,step=None,step_pids=None,passed_conn=None):
 	#below for threading only
 	#wait on another thread(s) to finish
 	step.active=True
@@ -200,7 +200,10 @@ def execstep(queue=None, script=None,step=None,step_pids=None):
 	status = "FAIL"
 	try:
 		sql = open(script).read()
-		conn = psycopg2.connect("dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'")
+		if passed_conn == None:
+			conn = psycopg2.connect("dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'")
+		else:
+			conn = passed_conn
 		cur = conn.cursor()
 	#	print sql
 		cur.execute(sql)

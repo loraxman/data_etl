@@ -16,6 +16,7 @@ from flask import request
 import celery
 
 import tasks
+from  etl.testrunner import TestRunner
 
 @app.route('/')
 @app.route('/index')
@@ -47,6 +48,13 @@ def execute_job():
 	#j.execute()
 	tasks.startjob.delay(jobfile)
 	return "OK"
+
+@app.route("/jobs/unittests")
+def execute_unittests():
+	directory="/Users/A727200/proj/data_etl/app/jobs"
+	job_results = TestRunner.runtests(directory)
+	return jsonpickle.encode(job_results)
+
 
 @app.route("/jobs/active")
 def active_jobs():

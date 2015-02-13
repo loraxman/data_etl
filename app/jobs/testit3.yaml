@@ -6,6 +6,7 @@ job:
     step1:
       name: step1  
       description: A first SQL
+      connectdb: dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'
       type: SQL
       file: /Users/A727200/proj/data_etl/app/etl/sample1.sql
       async: True
@@ -13,6 +14,7 @@ job:
     step2:
       name: step2
       type: SQL
+      connectdb: dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'
       description: A second SQL
       file: /Users/A727200/proj/data_etl/app/etl/sample2.sql
       async: True
@@ -23,6 +25,7 @@ job:
     step3:
       name: step3
       type: python
+      connectdb: dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'
       file: /Users/A727200/proj/data_etl/app/etl/imported
       description: A python statistical analysis job
       async: True
@@ -33,6 +36,7 @@ job:
     step4:
       name: step4  
       type: SQL
+      connectdb: dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'
       file: /Users/A727200/proj/data_etl/app/etl/sample1.sql
       description: A third SQL      
       async: True

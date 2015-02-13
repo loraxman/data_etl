@@ -35,7 +35,7 @@ class Job:
 		while self.monitor_alive:
 			jobsteps = []
 			active = self.active_steps()
-	#		print self.job_id, active
+			print self.job_id, active
 			self.redis.hset(self.yamlfile,  str(self.job_id), active)
 
 			time.sleep(5)
@@ -64,7 +64,7 @@ class Job:
 		d1 = sorted(stepdict)
 		for step in d1:
 			item = stepdict[step]
-			s = Step(item['name'], item['type'],item['file'], item['async'], item['err'],item['description'])
+			s = Step(item['name'], item['type'],item['file'], item['async'], item['err'],item['description'],connectdb=item['connectdb'])
 			if item.has_key('waits_on'):
 				for wait in item['waits_on']:
 					s.wait_on(wait.strip())
@@ -150,7 +150,7 @@ class Job:
 #can also be a python script
 #all assume an interface call "execstep"	
 class Step:
-	def __init__(self,name,steptype, file,async=False,error=None,description=None,job=None):
+	def __init__(self,name,steptype, file,async=False,error=None,description=None,job=None,connectdb=None):
 		self.name = name
 		self.steptype = steptype
 		self.file = file
@@ -162,6 +162,7 @@ class Step:
 		self.job=job
 		self.waiting_on = []
 		self.active = False
+		self.connectdb = connectdb
 
 		
 	def wait_on(self,step_name):
@@ -201,7 +202,7 @@ def execstep(queue=None, script=None,step=None,step_pids=None,passed_conn=None):
 	try:
 		sql = open(script).read()
 		if passed_conn == None:
-			conn = psycopg2.connect("dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'")
+			conn = psycopg2.connect(step.connectdb)
 		else:
 			conn = passed_conn
 		cur = conn.cursor()

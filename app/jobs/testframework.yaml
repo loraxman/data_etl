@@ -7,12 +7,14 @@ job:
       name: step1  
       description: Given we setup 100 raw claims from a temp table
       type: SQL
+      connectdb: dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'
       file: /Users/A727200/proj/data_etl/app/etl/sample1.sql
       async: True
       err: None  
     step2:
       name: step2
       type: SQL
+      connectdb: dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'
       description: When we extract facilities from the claims data
       file: /Users/A727200/proj/data_etl/app/etl/sample2.sql
       async: True
@@ -22,6 +24,7 @@ job:
     step3:
       name: step3 
       type: SQL
+      connectdb: dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'
       file: /Users/A727200/proj/data_etl/app/etl/fail1.sql
       description: Then we should see 10 new facilities in NYC    
       async: True

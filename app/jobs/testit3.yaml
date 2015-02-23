@@ -41,5 +41,7 @@ job:
       description: A third SQL      
       async: True
       err: None
+      waits_on:
+        - step3
         
       

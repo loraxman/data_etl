@@ -4,7 +4,7 @@ job:
   description: Load provider directory from EPDB files
   steps: 
     step1:
-      name: step1  
+      name: Stage-1 
       description: Load raw tables to stage
       connectdb: dbname='provider' user='A727200' port='5432' host='192.168.1.24' password=''
       type: SQL
@@ -12,7 +12,27 @@ job:
       async: True
       err: None  
     step2:
-      name: step2
+      name: ProvdrH-2
+      type: SQL
+      connectdb: dbname='provider' user='A727200' port='5432' host='192.168.1.24' password=''
+      description: Load provider quality recog 
+      file: /Users/A727200/proj/data_etl/app/etl/load_prvdr_hub.sql
+      async: True
+      err: None  
+      waits_on:
+        - Stage-1
+    step3:
+      name: ProvdrS-3
+      type: SQL
+      connectdb: dbname='provider' user='A727200' port='5432' host='192.168.1.24' password=''
+      description: Load provider quality recog 
+      file: /Users/A727200/proj/data_etl/app/etl/load_prvdr_sat.sql
+      async: True
+      err: None  
+      waits_on:
+        - ProvdrH-2        
+    step4:
+      name: ProvdrRecogH-4
       type: SQL
       connectdb: dbname='provider' user='A727200' port='5432' host='192.168.1.24' password=''
       description: Load provider quality recog 
@@ -20,4 +40,35 @@ job:
       async: True
       err: None  
       waits_on:
-        - step1
+        - Stage-1
+    step5:
+      name: ProvdrRecogS-5
+      type: SQL
+      connectdb: dbname='provider' user='A727200' port='5432' host='192.168.1.24' password=''
+      description: Load provider quality recog 
+      file: /Users/A727200/proj/data_etl/app/etl/load_prvdr_recog_sat.sql
+      async: True
+      err: None  
+      waits_on:
+         - ProvdrRecogH-4
+    step6:
+      name: ProvdrLocnH-6
+      type: SQL
+      connectdb: dbname='provider' user='A727200' port='5432' host='192.168.1.24' password=''
+      description: Load provider location hub
+      file: /Users/A727200/proj/data_etl/app/etl/load_prvdrlocn_hub.sql
+      async: True
+      err: None  
+      waits_on:
+         - Stage-1
+     step7:
+      name: ProvdrLocnSpeclH-7
+      type: SQL
+      connectdb: dbname='provider' user='A727200' port='5432' host='192.168.1.24' password=''
+      description: Load provider location practice specl hub
+      file: /Users/A727200/proj/data_etl/app/etl/load_prvdrlocn_practspecl_hub.sql
+      async: True
+      err: None  
+      waits_on:
+         - Stage-1
+               

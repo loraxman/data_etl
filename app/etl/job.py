@@ -123,6 +123,9 @@ class Job:
 					p = threading.Thread(target=pymod.execstep, args=(self.queue,step,self.step_pids))
 #					p = multiprocessing.Process(target=unittest.execstep, args=(self.queue,step,))
 					self.pids.append(p)
+					if not (self.step_pids.has_key(step.name)):
+						self.step_pids[step.name] = []
+					self.step_pids[step.name].append(p)					
 					p.start()
 #					print "started step %s" % (step.name)
 				else:

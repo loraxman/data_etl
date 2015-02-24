@@ -1,17 +1,19 @@
 
-truncate table w_h_AmaSpeclGroupPractSpecl;
+truncate table w_l_AmaSpeclGroupPractSpecl_amaspeclgroup;
 
-insert into w_h_AmaSpeclGroupPractSpecl
-(amaspeclgroupcode,
-practspeclcode
+insert into w_l_AmaSpeclGroupPractSpecl_amaspeclgroup
+(AmaSpeclGroupPractSpeclKey,
+amaspeclgroupkey,
+Recefftime
   )
- select amaspeclgroupcode,practspeclcode
- from h_practspecl a,
- h_amaspeclgroup b,
- practice c
- where "Practice Code" = a.practspeclcode
- and b.amaspeclgroupcode = "AMA Specialty Group";
+ select AmaSpeclGroupPractSpeclKey,amaspeclgroupkey,current_timestamp
+ from h_AmaSpeclGroupPractSpecl a,
+ h_amaspeclgroup b
  
-select load_h_AmaSpeclGroupPractSpecl();
+where  b.amaspeclgroupcode = a.amaspeclgroupcode ;
+ 
+
+ 
+select load_l_AmaSpeclGroupPractSpecl_amaspeclgroup();
 commit;
 

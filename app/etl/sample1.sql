@@ -1,2 +1,2 @@
-select * from claims limit 5000;
+select * from vault.h_search limit 50;
 select 'PASS' as status;

@@ -61,7 +61,7 @@ job:
       err: None  
       waits_on:
          - Stage-1
-     step7:
+    step7:
       name: ProvdrLocnSpeclH-7
       type: SQL
       connectdb: dbname='provider' user='A727200' port='5432' host='192.168.1.24' password=''

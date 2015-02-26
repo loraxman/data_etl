@@ -25,7 +25,7 @@ job:
       name: step3 
       type: SQL
       connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
-       file: app/etl/fail1.sql
+      file: app/etl/fail1.sql
       description: Then we should see 10 new facilities in NYC    
       async: True
       err: None

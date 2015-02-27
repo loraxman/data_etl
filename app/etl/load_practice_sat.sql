@@ -1,6 +1,6 @@
-truncate table w_s_practspecl;
+truncate table etl.w_s_practspecl;
 
-insert into w_s_practspecl
+insert into etl.w_s_practspecl
 (practspeclkey,
   practspecldescr ,
   recefftime 
@@ -8,16 +8,16 @@ insert into w_s_practspecl
 select distinct b.practspeclkey,
 "Practice Description",
 current_timestamp
- from practice a, h_practspecl b
+ from staging.practice a, vault.h_practspecl b
 where "Practice Code" = b.practspeclcode;
 
-select load_s_practspecl();
+select etl.load_s_practspecl();
 commit;
 
 
-truncate table w_s_amaspeclgroup;
+truncate table etl.w_s_amaspeclgroup;
 
-insert into w_s_amaspeclgroup
+insert into etl.w_s_amaspeclgroup
 (amaspeclgroupkey,
   amaspeclgroupdescr ,
   recefftime 
@@ -25,10 +25,10 @@ insert into w_s_amaspeclgroup
 select distinct b.amaspeclgroupkey,
 "AMA Specialty Group",
 current_timestamp
- from practice a, h_amaspeclgroup b
+ from staging.practice a, vault.h_amaspeclgroup b
 where "AMA Specialty Group" = b.amaspeclgroupcode;
 
-select load_s_amaspeclgroup();
+select etl.load_s_amaspeclgroup();
 commit;
 
 

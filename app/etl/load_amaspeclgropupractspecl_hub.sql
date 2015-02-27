@@ -1,19 +1,18 @@
 
-truncate table w_l_AmaSpeclGroupPractSpecl_amaspeclgroup;
 
-insert into w_l_AmaSpeclGroupPractSpecl_amaspeclgroup
-(AmaSpeclGroupPractSpeclKey,
-amaspeclgroupkey,
-Recefftime
+truncate table etl.w_h_AmaSpeclGroupPractSpecl;
+
+insert into etl.w_h_AmaSpeclGroupPractSpecl
+(amaspeclgroupcode,
+practspeclcode
   )
- select AmaSpeclGroupPractSpeclKey,amaspeclgroupkey,current_timestamp
- from h_AmaSpeclGroupPractSpecl a,
- h_amaspeclgroup b
+ select amaspeclgroupcode,practspeclcode
+ from vault.h_practspecl a,
+ vault.h_amaspeclgroup b,
+ staging.practice c
+ where "Practice Code" = a.practspeclcode
+ and b.amaspeclgroupcode = "AMA Specialty Group";
  
-where  b.amaspeclgroupcode = a.amaspeclgroupcode ;
- 
-
- 
-select load_l_AmaSpeclGroupPractSpecl_amaspeclgroup();
+select etl.load_h_AmaSpeclGroupPractSpecl();
 commit;
 

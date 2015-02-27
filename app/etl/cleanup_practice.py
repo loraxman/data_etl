@@ -20,7 +20,7 @@ def execstep(queue=None,step=None,step_pids=None):
 			break
 		#need to cleanup practice description
 		#collapse spaces and reconstruct so that the descriptions are unique
-		cleanbuf += line.strip().strip("-").strip() + "\n"
+		cleanbuf = cleanbuf + line.strip().strip("-").strip().strip(" ") + ";" +  "\n"
 	fout = open("/Users/A727200/proj/ipynotes/work/provider/cleanpract.csv","w")
 	fout.write(cleanbuf)
 	fout.close()

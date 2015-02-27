@@ -6,25 +6,27 @@ job:
     step1:
       name: DataPractCleanup-1
       type: python
-      connectdb: dbname='claims' user='roger@wellmatchhealth.com' port='5439' host='dw-nonprod.healthagen.com' password='S6JB3ZjG7FMN'
-      file: /Users/A727200/proj/data_etl/app/etl/cleanup_practice
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+      file: app/etl/cleanup_practice
       description: A python statistical analysis job
       async: True
       err: None  
     step2:
       name: StagingPract-2
       description: Load raw tables to stage
-      connectdb: dbname='provider' user='A727200' port='5432' host='192.168.1.24' password=''
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
       type: SQL
-      file: /Users/A727200/proj/data_etl/app/etl/load_practice_raw.sql
+      file: app/etl/load_practice_raw.sql
       async: True
-      err: None  
+      err: None 
+      waits_on:
+        - DataPractCleanup-1
     step3:
       name: PractSpclH-3
       description: Load practice specialty codes
-      connectdb: dbname='provider' user='A727200' port='5432' host='192.168.1.24' password=''
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
       type: SQL
-      file: /Users/A727200/proj/data_etl/app/etl/load_practice_hub.sql
+      file: app/etl/load_practice_hub.sql
       async: True
       err: None  
       waits_on:
@@ -32,9 +34,9 @@ job:
     step4:
       name: PractSpclS-4
       description: Load practice specialty codes satellite
-      connectdb: dbname='provider' user='A727200' port='5432' host='192.168.1.24' password=''
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
       type: SQL
-      file: /Users/A727200/proj/data_etl/app/etl/load_practice_sat.sql
+      file: app/etl/load_practice_sat.sql
       async: True
       err: None  
       waits_on:

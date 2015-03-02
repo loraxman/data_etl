@@ -1,0 +1,44 @@
+job:
+  name: TDD reference
+  jobtype: unittest
+  description: TDD reference for SQL
+  steps: 
+    step1:
+      name: setup  
+      description: Given
+      type: SQL
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+      file: app/etl/tdd_ref_setup.sql
+      async: True
+      err: None  
+    step2:
+      name: when
+      type: SQL
+      description: When
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+      file: app/etl/tdd_ref_when.sql
+      async: True
+      err: None  
+      waits_on:
+        - setup
+    step3:
+      name: then 
+      type: SQL
+      description: Then
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+      file: app/etl/tdd_ref_then.sql
+      async: True
+      err: None
+      waits_on:
+        - when 
+    step4:
+      name: assert
+      type: SQL
+      description: Assert
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+      file: app/etl/tdd_ref_publish.sql
+      async: True
+      err: None
+      waits_on:
+        - then 
+      

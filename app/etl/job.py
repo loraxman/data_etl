@@ -80,6 +80,9 @@ class Job:
 		pmon = threading.Thread(target=self.monitor_persist, args=())
 		pmon.start();
 		#start monitor thread
+		#if a unit test get the first db connection and hold
+		#used for rollback on tests
+		passed_dbconn = None
 		for step in self.steps:
 			#note below loop only used for Process based
 			#currenlty does nothing!
@@ -97,7 +100,16 @@ class Job:
 					pass
 				
 			if step.steptype == "SQL":
-				if step.async:
+				#if this is a unit test then get only one connection and
+				#do syncrhonous
+				if self.jobtype == "unittest":
+					#get the first step and do its db connect.
+					if passed_dbconn == None:
+						passed_dbconn = psycopg2.connect(step.connectdb)
+					execstep(self.queue,step.file,step,None,passed_dbconn)	
+					self.pids.append(0) #add to fake pid so it does results 
+				
+				elif step.async:
 					p = threading.Thread(target=execstep, args=(self.queue,step.file,step,self.step_pids))
 #					p = multiprocessing.Process(target=execstep, args=(self.queue,step.file,step,self.step_pids))
 					self.pids.append(p)
@@ -131,7 +143,11 @@ class Job:
 				else:
 				#	print "started step %s" % (step.name,self.step_pids)
 					pymod.exestep(self.queue, step)
-
+					
+		#if a unit test rollback automatically
+		if self.jobtype == "unittest":
+			cur = passed_dbconn.cursor()
+			cur.execute("rollback")
 		pidlen = len(self.pids)
 		deque = 0		
 		job_status = []
@@ -196,6 +212,8 @@ def execstep(queue=None, script=None,step=None,step_pids=None,passed_conn=None):
 	#wait on another thread(s) to finish
 	step.active=True
 	for wstep in step.wait_steps:
+		if step_pids == None:
+			break
 		for wpid in step_pids[wstep]:
 		#	print "........Step %s waits on %s" % ( step.name, wstep)
 			wpid.join()
@@ -214,6 +232,8 @@ def execstep(queue=None, script=None,step=None,step_pids=None,passed_conn=None):
 		#fetch all
 		#we will assume the first row/col is the result "PASS"/"FAIL"
 		rows = cur.fetchall()
+#		print rows
+#		print sql
 		status = rows[0][0]
 	except Exception as inst:
 		print "Error:%s" % inst
@@ -221,4 +241,5 @@ def execstep(queue=None, script=None,step=None,step_pids=None,passed_conn=None):
 		
 	sq = StepQueueEntry (step,status)
 	queue.put(sq)	
+	
 

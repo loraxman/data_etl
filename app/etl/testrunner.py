@@ -9,7 +9,8 @@ class TestRunner:
 		j = Job(None)
 		j.loadyaml(jobfile)
 		if j.jobtype == "unittest":
-			print "started job:" + j.name
+			print "--------------------------------------------------"
+			print "started test:\t" + j.name
 			ret_status = j.execute()
 			return j,ret_status
 		else:
@@ -26,17 +27,19 @@ class TestRunner:
 			jobres = {job:runjob, "status":ret_status}
 			if runjob.jobtype=="unittest":
 				runjobs.append(jobres)
-				print "-----------------------------------------\n"
+#				print "-------------------------------------------\n\n"
 			for stat in ret_status:
 				print "%s\t%s\n" % (stat.return_value,stat.step.description)
+			print "\n"
 		TestRunner.print_results(runjobs)
 		return runjobs
 	
 	@staticmethod
 	def print_results(jobs):
-		print "\n\n======================SUMMARY=================================="
+		print "\n\n\n=====================================SUMMARY============================================"
 		jobcnt =  len(jobs)
 		fails = 0
+		
 		for job in jobs:
 			job["testpass"] = True
 			for stat in job["status"]:
@@ -45,11 +48,15 @@ class TestRunner:
 					job["testpass"] = False
 		
 		for job in jobs:
+			for key in job.keys():
+				if key != "status" and  key != "testpass":
+					break
+				
 			if  job["testpass"] == False :
-				print "job:%20s%40s\t\t FAILED" % (job[job.keys()[1]].name,job[job.keys()[1]].description)
+				print "job:%20s%40s\t\t FAILED" % (job[key].name,job[key].description)
 				fails += 1
 			else:
-				print "job:%20s%40s\t\t PASS" % (job[job.keys()[1]].name,job[job.keys()[1]].description)
+				print "job:%20s%40s\t\t PASS" % (job[key].name,job[key].description)
 				
 				
 		print "Total tests failed:%d" % fails

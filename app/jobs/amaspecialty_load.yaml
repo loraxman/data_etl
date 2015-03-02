@@ -8,12 +8,12 @@ job:
       type: python
       connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
       file: app/etl/cleanup_practice
-      description: A python statistical analysis job
+      description: Cleanup of AMA specialty map excel
       async: True
       err: None  
     step2:
       name: StagingPract-2
-      description: Load raw tables to stage
+      description: Load practice raw tables to stage
       connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
       type: SQL
       file: app/etl/load_practice_raw.sql
@@ -41,4 +41,45 @@ job:
       err: None  
       waits_on:
         - PractSpclH-3      
+    step5:
+      name: AMASpclH-5
+      description: Load AMA specialty hub
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+      type: SQL
+      file: app/etl/load_amaspeclgrouppractspecl_hub.sql
+      async: True
+      err: None  
+      waits_on:
+        - StagingPract-2      
+    step6:
+      name: AMASpclPractspeclL-6
+      description: Load AMA practice specialty link
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+      type: SQL
+      file: app/etl/load_amaspeclgrouppractspecl_amaspeclgroup_lnk.sql
+      async: True
+      err: None  
+      waits_on:
+        - AMASpclH-5     
+    step7:
+      name: AMASpclGroupH-7
+      description: Load AMA specialty group hub
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+      type: SQL
+      file: app/etl/load_amaspeclgroup_hub.sql
+      async: True
+      err: None  
+      waits_on:
+        - DataPractCleanup-1     
+    step8:
+      name: AMASpclGroupH-8
+      description: Load AMA specialty group sat
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+      type: SQL
+      file: app/etl/load_amaspeclgroup_sat.sql
+      async: True
+      err: None  
+      waits_on:
+        - AMASpclGroupH-7     
+  
            

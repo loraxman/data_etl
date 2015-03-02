@@ -17,34 +17,40 @@ def get_redis_schedule():
 	r = redis.Redis()
 	list = r.hgetall("taskhash")
 	i=0
-	joblist = ''
+	joblist = []
 	for item in list:
 		print item
 		job = r.hget("taskhash",item)
 		print job
 	#	json.loads(job)
-		joblist += job 
+		joblist.append(job)
 		i+=1
-	return joblist 
+	return joblist
 
 CELERY_TIMEZONE = 'America/Chicago'
 CELERY_IMPORTS=("app.tasks")
 from celery.schedules import crontab
 
 #why not just read from redis here!!
-tmp = get_redis_schedule()
+joblist = get_redis_schedule()
 print "_____________________"
-print json.loads(str(tmp))
-tmp = json.loads(str(tmp))
-for key in tmp.keys():
-	tmp[key]["schedule"] = eval(tmp[key]["schedule"])
+
+print "_____________________"
+#print json.loads(str(tmp))
+#tmp = json.loads(str(tmp))
+for j in joblist:
+	job = json.loads(j)
+	print job
+	key = job.keys()[0]
+	print job[key]["schedule"]
+	job[key]["schedule"] = eval(job[key]["schedule"])
 	print "eval1"
-	tmp[key]["args"] = eval(tmp[key]["args"])
+	job[key]["args"] = eval(job[key]["args"])
 	print "eval2"
-	print tmp[key]["args"]
-	print tmp[key]
+	print job[key]["args"]
+	print job[key]
 print "00000000000000000000000"
-CELERYBEAT_SCHEDULE = tmp
+CELERYBEAT_SCHEDULE = job
 #print CELERYBEAT_SCHEDULE 
 CELERYBEAT_SCHEDULE2 = {
 	"every-minute": {

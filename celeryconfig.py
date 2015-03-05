@@ -38,6 +38,7 @@ print "_____________________"
 print "_____________________"
 #print json.loads(str(tmp))
 #tmp = json.loads(str(tmp))
+job=None
 for j in joblist:
 	job = json.loads(j)
 	print job

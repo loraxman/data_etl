@@ -70,9 +70,9 @@ job:
       async: True
       err: None  
       waits_on:
-        - DataPractCleanup-1     
+        - StagingPract-2     
     step8:
-      name: AMASpclGroupH-8
+      name: AMASpclGroupS-8
       description: Load AMA specialty group sat
       connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
       type: SQL

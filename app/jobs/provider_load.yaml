@@ -6,7 +6,7 @@ job:
     step1:
       name: Stage-1 
       description: Load raw tables to stage
-      connectdb: dbname='provider' user='A727200' port='5432' host='192.168.1.24' password=''
+      connectdb: dbname='provider' user='etlrobot' port='5432' host='localhost' password='N01nose'
       type: SQL
       file: /Users/A727200/proj/data_etl/app/etl/load_prvdr_raw.sql
       async: True
@@ -14,7 +14,7 @@ job:
     step2:
       name: ProvdrH-2
       type: SQL
-      connectdb: dbname='provider' user='A727200' port='5432' host='192.168.1.24' password=''
+      connectdb: dbname='provider' user='etlrobot' port='5432' host='localhost' password='N01nose'
       description: Load provider quality recog 
       file: /Users/A727200/proj/data_etl/app/etl/load_prvdr_hub.sql
       async: True

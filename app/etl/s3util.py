@@ -1,0 +1,62 @@
+import boto
+import os
+import uuid
+import sys
+from boto.s3.connection import S3Connection
+from boto.s3.key import Key
+import sys
+from boto.s3.connection import S3Connection
+import smart_open
+import re
+
+#grab a file from an S3 bucket stream as std out
+
+def get_s3_file(s3filename,named_pipe=None):
+	#rgex +name+ 
+	rgex = re.compile("%s+" % (s3filename,))
+	AWS_ACCESS_KEY_ID='AKIAIIPY3Q2PZYIDI3TA'
+	AWS_SECRET_ACCESS_KEY='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'
+	s3 = boto.connect_s3(aws_access_key_id='AKIAIIPY3Q2PZYIDI3TA', aws_secret_access_key='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')
+	#s3 = boto.connect_s3()
+	bucket = s3.get_bucket('wellmatch-healthline-provider-data')
+	
+	listall = bucket.list()
+	for item in listall:
+		fname = str(item).split(",")[1].strip(">").strip()
+		if (not rgex.match(fname)):
+			continue
+		sz = bucket.lookup(fname).size
+		print fname + ' size->' + str(sz)
+		totbytes = 0
+		if named_pipe:
+			infile = named_pipe
+			try:
+				os.system('mkfifo ' + infile)
+			except:
+				pass # if exists don't care
+		else:
+			infile = fname
+		print 'transferring %s...' % infile
+		fout = open(str(infile),"w")
+		incrbytes = 0
+		with smart_open.smart_open('s3://wellmatch-healthline-provider-data/' + fname) as fin:
+			#read 50M in
+			#then read do a single readline to make sure we got complete records before sending to pipe
+			while True:
+				inbuf = fin.read(10000000)
+				#read til we find a complete record
+				for i in range (1,30000):
+					inchar = fin.read(1)
+					inbuf += inchar
+					if inchar == "\n" or inchar == "":
+						break
+				totbytes += len(inbuf)
+				print "Bytes transferred %d" % totbytes
+				if inbuf == "":
+					fout.close()
+					totbytes = 0
+					break
+				#fout.write(inbuf)
+				#fout.flush()
+	
+	

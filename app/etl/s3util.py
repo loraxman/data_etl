@@ -31,8 +31,8 @@ def get_s3_file(s3filename,named_pipe=None):
 		if named_pipe:
 			infile = named_pipe
 			try:
-				os.system('mkfifo ' + infile)
 				if (not fout):
+					os.system('mkfifo ' + infile)
 					fout = open(str(infile),"w")
 			except:
 				pass # if exists don't care
@@ -40,7 +40,7 @@ def get_s3_file(s3filename,named_pipe=None):
 			infile = fname
 			fout = open(str(infile),"w")
 
-		print 'transferring %s...' % infile
+		print 'transferring %s...' % fname
 		incrbytes = 0
 		eof = False
 		with smart_open.smart_open('s3://wellmatch-healthline-provider-data/' + fname) as fin:
@@ -67,7 +67,7 @@ def get_s3_file(s3filename,named_pipe=None):
 						fout.close()
 					totbytes = 0
 					break
-				#fout.write(inbuf)
-				#fout.flush()
+				fout.write(inbuf)
+				fout.flush()
 	
 	

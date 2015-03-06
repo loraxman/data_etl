@@ -46,23 +46,34 @@ def get_s3_file(s3filename,named_pipe=None):
 		print 'transferring %s...' % fname
 		incrbytes = 0
 		eof = False
+		#retry logic is for getting back Incomplete read from S3.
+		#retry 10x until give up
+		retry_http = 0
 		with smart_open.smart_open('s3://'+AWS_ACCESS_KEY_ID+':' + AWS_SECRET_ACCESS_KEY + '@wellmatch-healthline-provider-data/' + fname) as fin:
 			#read 50M in
 			#then read do a single readline to make sure we got complete records before sending to pipe
 			while not eof:
-				inbuf = fin.read(50000000)
-				if inbuf=="":
-					eof = True
-					break
-				#read til we find a complete record
-				for i in range (1,30000):
-					inchar = fin.read(1)
-					if inchar == "":
-						eof = True
-						break
-					inbuf += inchar
-					if inchar == "\n":
-						break
+				while retry_http < 10:
+					try:
+						inbuf = fin.read(50000000)
+						retry_http = 11
+						if inbuf=="":
+							eof = True
+							break
+						#read til we find a complete record
+						for i in range (1,30000):
+							inchar = fin.read(1)
+							if inchar == "":
+								eof = True
+								break
+							inbuf += inchar
+							if inchar == "\n":
+								break
+					except:
+						retry_http += 1
+						if retry > 10:
+							#need terminate logic
+							return
 				totbytes += len(inbuf)
 				print "Bytes transferred %d of %d" % (totbytes, sz)
 				if eof:

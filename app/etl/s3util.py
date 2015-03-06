@@ -42,20 +42,27 @@ def get_s3_file(s3filename,named_pipe=None):
 
 		print 'transferring %s...' % infile
 		incrbytes = 0
+		eof = False
 		with smart_open.smart_open('s3://wellmatch-healthline-provider-data/' + fname) as fin:
 			#read 50M in
 			#then read do a single readline to make sure we got complete records before sending to pipe
-			while True:
+			while not eof:
 				inbuf = fin.read(50000000)
+				if inbuf=="":
+					eof = True
+					break
 				#read til we find a complete record
 				for i in range (1,30000):
 					inchar = fin.read(1)
+					if inchar == "":
+						eof = True
+						break
 					inbuf += inchar
-					if inchar == "\n" or inchar == "":
+					if inchar == "\n":
 						break
 				totbytes += len(inbuf)
-				print "Bytes transferred %d" % totbytes
-				if inbuf == "":
+				print "Bytes transferred %d of %d" % (totbytes, sz)
+				if eof:
 					if (not named_pipe):  #leave 
 						fout.close()
 					totbytes = 0

@@ -14,8 +14,8 @@ import re
 def get_s3_file(s3filename,named_pipe=None):
 	#rgex +name+ 
 	rgex = re.compile("%s+" % (s3filename,))
-	AWS_ACCESS_KEY_ID=open("awsid.txt").read()
-	AWS_SECRET_ACCESS_KEY=open("awskey.txt").read()
+	AWS_ACCESS_KEY_ID=open("awsid.txt").read().strip()
+	AWS_SECRET_ACCESS_KEY=open("awskey.txt").read().strip()
 	s3 = boto.connect_s3(aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
 	#s3 = boto.connect_s3()
 	bucket = s3.get_bucket('wellmatch-healthline-provider-data')

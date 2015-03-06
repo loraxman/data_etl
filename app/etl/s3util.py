@@ -46,7 +46,7 @@ def get_s3_file(s3filename,named_pipe=None):
 		print 'transferring %s...' % fname
 		incrbytes = 0
 		eof = False
-		with smart_open.smart_open('s3://wellmatch-healthline-provider-data/' + fname) as fin:
+		with smart_open.smart_open('s3://'+AWS_ACCESS_KEY_ID+':' + AWS_SECRET_ACCESS_KEY + '@wellmatch-healthline-provider-data/' + fname) as fin:
 			#read 50M in
 			#then read do a single readline to make sure we got complete records before sending to pipe
 			while not eof:

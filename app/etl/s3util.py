@@ -21,6 +21,7 @@ def get_s3_file(s3filename,named_pipe=None):
 	bucket = s3.get_bucket('wellmatch-healthline-provider-data')
 	
 	listall = bucket.list()
+	fout = None
 	for item in listall:
 		fname = str(item).split(",")[1].strip(">").strip()
 		if (not rgex.match(fname)):
@@ -32,9 +33,11 @@ def get_s3_file(s3filename,named_pipe=None):
 			infile = named_pipe
 			try:
 				if (not fout):
+					print 'make pipe'
 					os.system('mkfifo ' + infile)
 					fout = open(str(infile),"w")
-			except:
+			except Exception as e:
+				print e
 				pass # if exists don't care
 		else:
 			infile = fname

@@ -53,27 +53,27 @@ def get_s3_file(s3filename,named_pipe=None):
 			#read 50M in
 			#then read do a single readline to make sure we got complete records before sending to pipe
 			while not eof:
-				while retry_http < 10:
-					try:
-						inbuf = fin.read(50000000)
-						retry_http = 11
-						if inbuf=="":
+				try:
+					inbuf = fin.read(50000000)
+					if inbuf=="":
+						print 'EOF'
+						eof = True
+						retry_http=111
+						break
+					retry_http = 111
+					#read til we find a complete record
+					for i in range (1,30000):
+						inchar = fin.read(1)
+						if inchar == "":
 							eof = True
+							print 'EOF'
+							retry_http=111
 							break
-						#read til we find a complete record
-						for i in range (1,30000):
-							inchar = fin.read(1)
-							if inchar == "":
-								eof = True
-								break
-							inbuf += inchar
-							if inchar == "\n":
-								break
-					except:
-						retry_http += 1
-						if retry > 10:
-							#need terminate logic
-							return
+						inbuf += inchar
+						if inchar == "\n":
+							break
+				except Exception as e:
+					print e
 				totbytes += len(inbuf)
 				print "Bytes transferred %d of %d" % (totbytes, sz)
 				if eof:

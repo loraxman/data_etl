@@ -32,18 +32,21 @@ def get_s3_file(s3filename,named_pipe=None):
 			infile = named_pipe
 			try:
 				os.system('mkfifo ' + infile)
+				if (not fout):
+					fout = open(str(infile),"w")
 			except:
 				pass # if exists don't care
 		else:
 			infile = fname
+			fout = open(str(infile),"w")
+
 		print 'transferring %s...' % infile
-		fout = open(str(infile),"w")
 		incrbytes = 0
 		with smart_open.smart_open('s3://wellmatch-healthline-provider-data/' + fname) as fin:
 			#read 50M in
 			#then read do a single readline to make sure we got complete records before sending to pipe
 			while True:
-				inbuf = fin.read(10000000)
+				inbuf = fin.read(50000000)
 				#read til we find a complete record
 				for i in range (1,30000):
 					inchar = fin.read(1)
@@ -53,7 +56,8 @@ def get_s3_file(s3filename,named_pipe=None):
 				totbytes += len(inbuf)
 				print "Bytes transferred %d" % totbytes
 				if inbuf == "":
-					fout.close()
+					if (not named_pipe):  #leave 
+						fout.close()
 					totbytes = 0
 					break
 				#fout.write(inbuf)

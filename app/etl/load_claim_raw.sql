@@ -47,7 +47,7 @@ diag_code_10    varchar(1024),
 end_of_rec_01   varchar(1024)); 
 
 
-COPY staging.claims FROM '/Users/A727200/proj/data_etl/claimraw.dat' USING DELIMITERS '|' ;
+COPY staging.claims FROM '/home/ubuntu/data_projects/data_etl/claimraw.dat' USING DELIMITERS '|' ;
 commit;
 
 select 'PASS';

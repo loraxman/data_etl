@@ -1,5 +1,5 @@
 from job import StepQueueEntry
-import s3util
+import data_quality
 
 def execstep(queue=None,step=None,step_pids=None):
 	step.active=True
@@ -8,6 +8,6 @@ def execstep(queue=None,step=None,step_pids=None):
 			wpid.join()
 
 
-	s3util.get_s3_file("00",named_pipe="claimraw.dat")	
+	data_quality.gzipped_to_pipe("/Volumes/My Passport/WM/EPDB-HEALTHLINE.MULTI-EXTRACT.20150202180939/provntwkloc.dat.gz",named_pipe="provntwkloc.dat")	
 	sq = StepQueueEntry (step,"PASS")
 	queue.put(sq)	

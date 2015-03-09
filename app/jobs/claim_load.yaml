@@ -12,10 +12,11 @@ job:
       async: True
       err: None 
     step2:
-      name: ProvdrH-2
-      type: SQL
-      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
-      description: Load provider quality recog 
-      file: app/etl/load_claim_raw.sql
-      async: True
-      err: None  
+        name: ProvdrH-2
+        type: SQL
+        connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nosexxx'
+        description: Load provider quality recog-
+        file: app/etl/load_claim_raw.sql
+        async: True
+        err: None
+                                       

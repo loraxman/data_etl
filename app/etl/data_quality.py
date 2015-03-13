@@ -32,7 +32,8 @@ def gzipped_to_pipe(fname,named_pipe=None):
 				while not eof:
 					try:
 						inbuf = fin.read(50000000)
-						print inbuf[0:30]
+						#need to clear non-ascii garbage in file
+						inbuf = ''.join([i if ord(i) < 128 else ' ' for i in inbuf])
 						if inbuf=="":
 							print 'EOF'
 							eof = True
@@ -40,6 +41,8 @@ def gzipped_to_pipe(fname,named_pipe=None):
 						#read til we find a complete record
 						for i in range (1,30000):
 							inchar = fin.read(1)
+							if ord(inchar) < 128 :
+								inchar = " "
 							if inchar == "":
 								eof = True
 								print 'EOF'

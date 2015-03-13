@@ -8,6 +8,8 @@ def execstep(queue=None,step=None,step_pids=None):
 			wpid.join()
 
 
+	data_quality.gzipped_to_pipe("/Volumes/My Passport/WM/EPDB-HEALTHLINE.MULTI-EXTRACT.20150202180939/provsrvloc.dat.gz",named_pipe="provsrvloc.dat")	
 	data_quality.gzipped_to_pipe("/Volumes/My Passport/WM/EPDB-HEALTHLINE.MULTI-EXTRACT.20150202180939/provntwkloc.dat.gz",named_pipe="provntwkloc.dat")	
+
 	sq = StepQueueEntry (step,"PASS")
 	queue.put(sq)	

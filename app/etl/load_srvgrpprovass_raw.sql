@@ -1,0 +1,14 @@
+
+drop table if exists staging.srvgrpprovass;
+ CREATE TABLE staging.srvgrpprovass
+(PIN varchar(1024),BASE_NET_ID_NO varchar(1024),
+CLONE_NET_ID_NO varchar(1024),SERVICE_LOCATION_NO varchar(1024),PRACTICE_CODE varchar(1024),CATEGORY_CODE varchar(1024),CATEGORY_DESCRIPTION varchar(1024),CATEGORY_HIERARCHY varchar(1024),MASTER_CATEGORY_CODE varchar(1024),MASTER_CATEGORY_DESCRIPTION varchar(1024),SERVICE_GROUPING_TYPE varchar(1024),SERVICE_GROUPING_CODE varchar(1024),SERVICE_GROUPING_DESCRIPTION varchar(1024),CURRENT_TIER varchar(1024),CURRENT_TIER_DESCRIPTION varchar(1024),CURRENT_TIER_EXPIRATION_DATE varchar(1024),FUTURE_TIER varchar(1024),
+FUTURE_TIER_EFFECTIVE_DATE varchar(1024),
+DESIGNATION_CODE varchar(1024),REASON_CODE varchar(1024),
+fillertrail varchar(1024));
+
+
+COPY staging.srvgrpprovass FROM '/Users/A727200/proj/data_etl/srvgrpprovass.dat' USING DELIMITERS '|' ;
+commit;
+
+select 'PASS';

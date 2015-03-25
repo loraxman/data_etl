@@ -1,0 +1,59 @@
+job:
+  name: Provider Ntwk Load
+  jobtype: script
+  description: Load provider directory from EPDB files
+  steps: 
+    step1:
+      name: Stage-1 
+      description: Unzip from file
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+      type: python
+      file: app/etl/epdbload
+      async: True
+      err: None 
+    step1-a:
+        name: ProvdrLocnRaw-1-a
+        type: SQL
+        connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+        description: Load narrow network stage
+        file: app/etl/load_srvgrpprovass_raw.sql
+        async: True
+        err: None  
+      
+    step1a:
+        name: ProvdrLocnRaw-2
+        type: SQL
+        connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+        description: Load narrow network stage
+        file: app/etl/load_prvdr_raw.sql
+        async: True
+        err: None  
+    step2:
+        name: ProvdrNtwkRaw-2
+        type: SQL
+        connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+        description: Load narrow network stage
+        file: app/etl/load_prvdrntwkloc_raw.sql
+        async: True
+        err: None
+    step3:
+        name: NarrowNtwkH-3
+        type: SQL
+        connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+        description: Load narrow network hub
+        file: app/etl/load_narrowntwk_hub.sql
+        async: True
+        err: None
+        waits_on:
+            - ProvdrNtwkRaw-2
+    step4:
+        name: NarrowNtwkS-4
+        type: SQL
+        connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+        description: Load narrow network provider
+        file: app/etl/load_narrowntwk_sat.sql
+        async: True
+        err: None
+        waits_on:
+            - NarrowNtwkH-3
+                                                   

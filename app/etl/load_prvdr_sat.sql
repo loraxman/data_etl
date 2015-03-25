@@ -1,7 +1,7 @@
 truncate table w_s_provdr;
 
 insert into w_s_provdr
-(provdrkey, provdrname, provdrsalutation,provdrfirstname,provdrlastname,
+(provdrkey, provdrname, provdrsalutation,provdrlastname,provdrfirstname,
 provdrmiddlename,provdrgender,provdrbirthdate,provdrprimarydegreedescr,provdrsecondarydegreedescr,recefftime
 )
 select distinct b.provdrkey,

@@ -64,9 +64,9 @@ def service_single_provider(svcque):
     while True:
         try:
             provdrkey  = svcque.get()
-            print "provdkey:%d" % provdrkey
             if provdrkey == -99:
                 try:
+                    #issue commit for last incomplete batch
                      curjson.execute("commit")
                      print "commit final"
                      svcque.task_done()
@@ -127,27 +127,46 @@ def service_single_provider(svcque):
             providerlocn = {}
             for k,v in cols.items():
                     providerlocn[v] = rowloc[k]
-            providerlocn['practspecl'] = []
-            cur3=conn.cursor()
-            cur3.execute("Select * from vcpractspecl c,m_vcprovdrlocnpractspecl e where e.provdrlocnkey = %s and e.practspeclkey = c.practspeclkey" % (providerlocn['provdrlocnkey']))
-            rowspract = cur3.fetchall()
-            for rowpract in rowspract:
-                cols = gettabcols(cur3.description,"practspecl")
-    
-                practspecl = {}
-                for k,v in cols.items():
-                    try :
-                        practspecl[v] = rowpract[k].strip()
-                    except:
-                        practspecl[v] = rowpract[k]
-                        
-    
-                providerlocn['practspecl'].append(practspecl)   
-                    
-                    
             providerlocns.append(providerlocn)
         
-        provider['providerlocns'] = providerlocns    
+        provider['providerlocns'] = providerlocns   
+        
+        
+         
+        provider['specialities'] = []
+        sql = """
+            select a.amaspeclgroupcode as specialty
+            from m_vcamaspeclgrouppractspecl a,
+            mgeo_vcprovdrlocn b,
+            m_vcpractspecl c,
+            m_vcprovdr d,
+            m_vcprovdrlocnpractspecl e
+            where 
+             a.practspeclkey = c.practspeclkey
+            and e.practspeclkey = c.practspeclkey
+            and e.provdrlocnkey = b.provdrlocnkey
+            and e.provdrlocnkey = b.provdrlocnkey
+            and b.provdrkey = d.provdrkey       
+            and b.provdrkey = %d
+        """
+        cur3=conn.cursor()
+#            cur3.execute("Select * from vcpractspecl c,m_vcprovdrlocnpractspecl e where e.provdrlocnkey = %s and e.practspeclkey = c.practspeclkey" % (providerlocn['provdrlocnkey']))
+        cur3.execute(sql % (provider['provdrkey']))
+        rowspract = cur3.fetchall()
+        for rowpract in rowspract:
+            cols = gettabcols(cur3.description,"specialty")
+
+            practspecl = {}
+            for k,v in cols.items():
+                try :
+                    practspecl[v] = rowpract[k].strip()
+                except:
+                    practspecl[v] = rowpract[k]
+                    
+
+            provider['specialities'].append(practspecl)   
+            
+            
         
         sql = """
             select  h.provdrname, h.provdrisfacilityflag from vault.h_provdrhospital a,
@@ -233,9 +252,7 @@ def service_single_provider(svcque):
         sql = "insert into provider_json_compress (provdrid, provdrkey,provider_json_ztext) values ('%s','%s',%s) " % (provider['provdrid'],provider['provdrkey'],psycopg2.Binary(jsoncompressed))
         curjson.execute (sql)
         svcque.task_done()
-        curjson.execute("commit")
         cnt += 1
-        print cnt
         if cnt % 100 == 0:
                 curjson.execute("commit")
                 start_trx = True
@@ -243,4 +260,7 @@ def service_single_provider(svcque):
    
     
 make_json_providers()
+
+
+
     

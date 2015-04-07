@@ -11,6 +11,8 @@ provdrlocnnabpnumber,provdrlocnbuilding,provdrlocnstreet1,provdrlocnstreet2,prov
 provdrlocnstreet4,provdrlocnstreet5,provdrlocncity,provdrlocnstate,provdrlocnzip,provdrlocnzipext,
 provdrlocncounty,provdrlocncountrycode,
 provdrlocnhandicapflag,provdrlocnlatitude,provdrlocnlongitude,
+ProvdrBehavioralHealthFlag,
+ProvdrLocnDisplayFlag,
 recefftime)
 select provdrlocnkey,
 primary_serv_loc_ind,
@@ -39,6 +41,8 @@ svcl_country_cd,
 svcl_handicap ,
 cast(svcl_latitude as double precision) ,
 cast (svcl_longitude as double precision) ,
+behavioral_health_ind,
+addr_print_ind,
 current_timestamp
 from provsrvloc a, 
 h_provdrlocn b

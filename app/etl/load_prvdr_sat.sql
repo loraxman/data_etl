@@ -12,7 +12,7 @@ name,salutation,last_name,first_name,middle_name,gender_description,birth_date,p
 secondary_degree_desc,current_timestamp
  from provsrvloc a, h_provdr b, provider_type c
 where trim(a.pin)  = trim (b.provdrid )
-and a.provider_type = c."PROVIDER_TYPE_CD";
+and trim(a.provider_type) = trim(c."PROVIDER_TYPE_CD");
 
 select load_s_provdr();
 commit;

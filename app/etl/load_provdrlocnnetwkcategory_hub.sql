@@ -5,13 +5,12 @@ truncate table etl.w_h_provdrlocnnetwkcategory;
 
 
 insert into etl.w_h_provdrlocnnetwkcategory
-(provdrlocnkey,
-netwkcategorykey,
+(
 provdrlocnprovdrid,
 provdrlocnid,
 netwkcategorycode 
   )
- select distinct provdrlocnkey, netwkcategorykey,
+ select distinct 
 provdrlocnprovdrid,
 provdrlocnid,
 netwkcategorycode 

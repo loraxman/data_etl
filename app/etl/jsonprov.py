@@ -2,8 +2,9 @@
 import json
 import threading
 import multiprocessing
-import psycopg2
-import yaml
+#import psycopg2cffi
+import psycopg2cffi
+
 import Queue
 from time import sleep
 import zlib
@@ -29,7 +30,7 @@ def gettabcols(meta,tabname,notcols=None):
 
 def start_consumers(num_consume):
     for i in range(0, num_consume):
-        p = threading.Thread(target=service_single_provider, args=(queue,))
+        p = threading.Thread(target=service_single_provider, args=(queue,i))
         p.setDaemon(True)
         threads.append(p)
         p.start()
@@ -37,10 +38,10 @@ def start_consumers(num_consume):
 def make_json_providers():
     
     #start threads
-    start_consumers(3)
-    conn3 = psycopg2.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    start_consumers(10)
+    conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
     cur=conn3.cursor()
-    cur.execute("Select provdrkey from  h_provdr d  limit 5")
+    cur.execute("Select provdrkey from  h_provdr d  limit 50")
     
     while True:
         row = cur.fetchone()
@@ -56,8 +57,10 @@ def make_json_providers():
         queue.put(-99)
     queue.join()
        
-def service_single_provider(svcque): 
-    conn = psycopg2.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+def service_single_provider(svcque,threadno): 
+    if not sqlQ:
+        fjson = open(dpath + "/jsonout"+str(threadno)+".dat" , "w")
+    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
     cur5=conn.cursor()
     cnt = 0
     start_trx = True
@@ -67,8 +70,11 @@ def service_single_provider(svcque):
             if provdrkey == -99:
                 try:
                     #issue commit for last incomplete batch
-                     curjson.execute("commit")
-                     print "commit final"
+                     if sqlQ:
+                        curjson.execute("commit")
+                     else:
+                        fjson.close()
+                     print "commit final ... thread %d  at: %d" % (threadno,cnt)
                      svcque.task_done()
                      continue
                 except:
@@ -93,19 +99,20 @@ def service_single_provider(svcque):
                 provider[v] = row[k]
               #provider languages
         sql = """
-            select  langname from h_provdr a, vault.h_lang e, vault.s_lang d
-          , s_provdr b,  vault.l_provdr_lang c
-          where a.provdrkey = b.provdrkey 
-          and a.provdrkey = c.provdrkey
-          and e.langkey = c.langkey
-          and d.langkey  = e.langkey
-          and a.provdrkey = %s  
+              select  distinct langname from h_provdr a, vault.h_lang e, vault.s_lang d
+              ,   vault.l_provdr_lang c
+              where 
+              a.provdrkey = c.provdrkey
+              and e.langkey = c.langkey
+              and d.langkey  = e.langkey
+             and a.provdrkey = %s  
         """
         cur2=conn.cursor()
         cur2.execute(sql % (provider['provdrkey']))
         rowsloc = cur2.fetchall()
-        providerlangs={}
+        provider['languages'] = []
         for rowloc in rowsloc:
+            providerlangs={}
             cols = gettabcols(cur2.description,"lang")            
             for k,v in cols.items():
                 try:
@@ -114,7 +121,8 @@ def service_single_provider(svcque):
                     providerlangs[v] = rowloc[k]
                     
         
-        provider['providerlangs'] = providerlangs
+            provider['languages'].append(providerlangs)
+            
         #provider locns            
         cur2=conn.cursor()
         cur2.execute("Select * from mgeo_vcprovdrlocn b where b.provdrkey = %s " % (provider['provdrkey']))
@@ -126,29 +134,36 @@ def service_single_provider(svcque):
         
             providerlocn = {}
             for k,v in cols.items():
+                try:
+                    providerlocn[v] = rowloc[k].strip()
+                except:
                     providerlocn[v] = rowloc[k]
+                    
+                  
             providerlocns.append(providerlocn)
         
-        provider['providerlocns'] = providerlocns   
+        provider['locations'] = providerlocns   
         
         
          
         provider['specialities'] = []
         sql = """
-            select a.amaspeclgroupcode as specialty
-            from m_vcamaspeclgrouppractspecl a,
-            mgeo_vcprovdrlocn b,
-            m_vcpractspecl c,
-            m_vcprovdr d,
-            m_vcprovdrlocnpractspecl e
-            where 
+             select distinct a.amaspeclgroupcode as specialty
+             from m_vcamaspeclgrouppractspecl a,
+             mgeo_vcprovdrlocn b,
+             m_vcpractspecl c,
+             l_provdrlocnpractspecl_practspecl e,
+             l_provdrlocnpractspecl_provdrlocn f,
+             h_provdrlocnpractspecl g
+             where 
              a.practspeclkey = c.practspeclkey
-            and e.practspeclkey = c.practspeclkey
-            and e.provdrlocnkey = b.provdrlocnkey
-            and e.provdrlocnkey = b.provdrlocnkey
-            and b.provdrkey = d.provdrkey       
-            and b.provdrkey = %d
-        """
+             and e.practspeclkey = c.practspeclkey
+             and f.provdrlocnkey = b.provdrlocnkey  
+             and g.provdrlocnpractspeclkey = e.provdrlocnpractspeclkey
+             and g.provdrlocnpractspeclkey = f.provdrlocnpractspeclkey
+             and b.provdrkey = %d
+    
+       """
         cur3=conn.cursor()
 #            cur3.execute("Select * from vcpractspecl c,m_vcprovdrlocnpractspecl e where e.provdrlocnkey = %s and e.practspeclkey = c.practspeclkey" % (providerlocn['provdrlocnkey']))
         cur3.execute(sql % (provider['provdrkey']))
@@ -188,8 +203,9 @@ def service_single_provider(svcque):
         cur2=conn.cursor()
         cur2.execute(sql % (provider['provdrkey']))
         rowshosp = cur2.fetchall()
-        providerhospitals={}
+        provider['hospitals'] = []
         for rowloc in rowshosp:
+            providerhospitals={}
             cols = gettabcols(cur2.description,"provdr")            
             for k,v in cols.items():
                 try:
@@ -197,12 +213,12 @@ def service_single_provider(svcque):
                 except:
                     providerhospitals[v] = rowloc[k]
                     
-        provider['providerhospitals'] = providerhospitals
+            provider['hospitals'].append(providerhospitals)
 
         sql = """
         select distinct c.netwkcategorycode, netwkcategorydescr
-        from h_provdr a, 
-        s_provdr b,
+        from 
+ 
         h_provdrlocn e,
         vault.h_netwkcategory c,
         vault.h_provdrlocnnetwkcategory d,
@@ -214,19 +230,19 @@ def service_single_provider(svcque):
         and g.netwkcategorykey = c.netwkcategorykey
         and d.provdrlocnnetwkcategorykey = f.provdrlocnnetwkcategorykey
         and d.provdrlocnnetwkcategorykey = g.provdrlocnnetwkcategorykey
-        and h.provdrkey = a.provdrkey
         and h.provdrlocnkey = e.provdrlocnkey
-        and a.provdrkey = b.provdrkey
+ 
         and i.netwkcategorykey = c.netwkcategorykey
-        and a.provdrkey = %d
+        and h.provdrkey = %d
         """
         
         cur2.close()
         cur2=conn.cursor()
         cur2.execute(sql % (provider['provdrkey']))
         rowsnet = cur2.fetchall()
-        providernetworks={}
+        provider['networks'] = []
         for rowloc in rowsnet:
+            providernetworks={}
             cols = gettabcols(cur2.description,"net")            
             for k,v in cols.items():
                 try:
@@ -234,31 +250,75 @@ def service_single_provider(svcque):
                 except:
                     providernetworks[v] = rowloc[k]
                     
-        provider['providernetworks'] = providernetworks
+            provider['networks'].append(providernetworks)
+
+        #provder quality program
+        sql = """
+        select qualityprogramdescr,qualityprogramcode from vault.h_qualityprogram a, 
+        vault.s_qualityprogram b,
+        vault.l_provdrlocn_qualityprogram c,
+        h_provdrlocn d,
+        s_provdrlocn e,
+        h_provdr f,
+        s_provdr g,
+        l_provdrlocn_provdr h
+        where a.qualityprogramkey = b.qualityprogramkey
+        and a.qualityprogramkey = c.qualityprogramkey
+        and d.provdrlocnkey = c.provdrlocnkey 
+        and e.provdrlocnkey = d.provdrlocnkey
+        and h.provdrkey = f.provdrkey
+        and h.provdrlocnkey = d.provdrlocnkey
+        and f.provdrkey = g.provdrkey 
+        and f.provdrkey = %d
+        """  
         
+             
+        cur2.close()
+        cur2=conn.cursor()
+        cur2.execute(sql % (provider['provdrkey']))
+        rowsnet = cur2.fetchall()
+        provider['programs'] = []
+        for rowloc in rowsnet:
+            providerprograms={}
+            cols = gettabcols(cur2.description,"quality")            
+            for k,v in cols.items():
+                try:
+                    providerprograms[v] = rowloc[k].strip()
+                except:
+                    providerprograms[v] = rowloc[k]
+                    
+            provider['programs'].append(providerprograms)
 
 
    #     print len(json.dumps(provider))
         jsoncompressed = zlib.compress(json.dumps(provider))
-        curjson = conn.cursor()
         provdrjson = json.dumps(provider)
         provdrjson = provdrjson.replace("'","''")
-        if start_trx:
-            curjson.execute("begin") 
-            start_trx = False
-        sql = "insert into provider_json (provdrid, provdrkey,provdrjson) values ('%s','%s','%s') " % (provider['provdrid'],provider['provdrkey'],provdrjson)
-        curjson.execute (sql)
-        curjson.execute("commit")
-        sql = "insert into provider_json_compress (provdrid, provdrkey,provider_json_ztext) values ('%s','%s',%s) " % (provider['provdrid'],provider['provdrkey'],psycopg2.Binary(jsoncompressed))
-        curjson.execute (sql)
-        svcque.task_done()
-        cnt += 1
-        if cnt % 100 == 0:
-                curjson.execute("commit")
-                start_trx = True
-                print "thread  at: %d" % (cnt)
-   
-    
+        if sqlQ:
+            curjson = conn.cursor()
+            if start_trx:
+                curjson.execute("begin") 
+                start_trx = False
+            sql = "insert into provider_json (provdrid, provdrkey,provdrjson) values ('%s','%s','%s') " % (provider['provdrid'],provider['provdrkey'],provdrjson)
+            curjson.execute (sql)
+            curjson.execute("commit")
+            sql = "insert into provider_json_compress (provdrid, provdrkey,provider_json_ztext) values ('%s','%s',%s) " % (provider['provdrid'],provider['provdrkey'],psycopg2cffi.Binary(jsoncompressed))
+            curjson.execute (sql)
+            svcque.task_done()
+            cnt += 1
+            if cnt % 100 == 0:
+                    curjson.execute("commit")
+                    start_trx = True
+                    print "thread %d  at: %d" % (threadno,cnt)
+        else:
+            fjson.write("%s|%s|%s\n" % (provider['provdrid'],provider['provdrkey'],provdrjson))
+            cnt += 1
+            if cnt % 100 == 0:
+                print "thread %d  at: %d" % (threadno,cnt)
+            svcque.task_done()
+
+sqlQ = True 
+dpath = "."         
 make_json_providers()
 
 

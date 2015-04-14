@@ -6,7 +6,7 @@ job:
     step1:
       name: CleanKeen-1
       description: Clean keen staging 
-      connectdb: dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      connectdb: dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'
       type: SQL
       file: app/etl/clear_keenstage.sql
       async: True
@@ -14,7 +14,7 @@ job:
     step2:
       name: GetURL-2
       type: python
-      connectdb: dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      connectdb: dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'
       file: app/etl/getkeenurl
       description: Load Keen URL
       async: True

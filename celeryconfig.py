@@ -33,32 +33,33 @@ from celery.schedules import crontab
 
 #why not just read from redis here!!
 joblist = get_redis_schedule()
-print "_____________________"
 
-print "_____________________"
 #print json.loads(str(tmp))
 #tmp = json.loads(str(tmp))
 job=None
+alljobs = {}
 for j in joblist:
 	job = json.loads(j)
-	print job
 	key = job.keys()[0]
-	print job[key]["schedule"]
 	job[key]["schedule"] = eval(job[key]["schedule"])
-	print "eval1"
 	job[key]["args"] = eval(job[key]["args"])
-	print "eval2"
-	print job[key]["args"]
-	print job[key]
-print "00000000000000000000000"
-CELERYBEAT_SCHEDULE = job
-#print CELERYBEAT_SCHEDULE 
+	alljobs[key] = job[key]
+print "-----------------------------------------"
+print alljobs
+CELERYBEAT_SCHEDULE = alljobs
+print CELERYBEAT_SCHEDULE 
 CELERYBEAT_SCHEDULE2 = {
 	"every-minute": {
 	"task": "app.tasks.add",
 	 "schedule": crontab(minute='*/1'),
 	"args": (1,2),
 	},
+   "every-minute2": {
+   "task": "app.tasks.add",
+   "schedule": crontab(minute='*/1'),
+   "args": (1,2),
+   },
+
 }
 
 

@@ -2,12 +2,13 @@
 import json
 import threading
 import multiprocessing
-#import psycopg2cffi
 import psycopg2cffi
+import psycopg2
 
 import Queue
 from time import sleep
 import zlib
+import requests
 
 import sys
 
@@ -299,11 +300,14 @@ def service_single_provider(svcque,threadno):
             if start_trx:
                 curjson.execute("begin") 
                 start_trx = False
-            sql = "insert into provider_json (provdrid, provdrkey,provdrjson) values ('%s','%s','%s') " % (provider['provdrid'],provider['provdrkey'],provdrjson)
+            sql = "update provider_json set provdrjson = '%s' where provdrkey = %s" % (provdrjson,provider['provdrkey'])
             curjson.execute (sql)
-            curjson.execute("commit")
-            sql = "insert into provider_json_compress (provdrid, provdrkey,provider_json_ztext) values ('%s','%s',%s) " % (provider['provdrid'],provider['provdrkey'],psycopg2cffi.Binary(jsoncompressed))
-            curjson.execute (sql)
+            if curjson.rowcount == 0:
+                sql = "insert into provider_json (provdrid, provdrkey,provdrjson) values ('%s','%s','%s') " % (provider['provdrid'],provider['provdrkey'],provdrjson)
+                curjson.execute (sql)
+         #   curjson.execute("commit")
+#            sql = "insert into provider_json_compress (provdrid, provdrkey,provider_json_ztext) values ('%s','%s',%s) " % (provider['provdrid'],provider['provdrkey'],psycopg2cffi.Binary(jsoncompressed))
+  #          curjson.execute (sql)
             svcque.task_done()
             cnt += 1
             if cnt % 100 == 0:
@@ -317,10 +321,56 @@ def service_single_provider(svcque,threadno):
                 print "thread %d  at: %d" % (threadno,cnt)
             svcque.task_done()
 
+
+def push_to_solr():
+
+    #provdrkey, locations geocodes, hospital names, specialties,provdr is facility,major clasification,name,lastname,firstname
+    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    cur=conn.cursor(name='scrollit')
+    sql = "select provdrjson from provider_json"
+    cur.execute(sql)
+    idx = 0
+    while True:
+        row = cur.fetchone()
+        #print row
+        if row == None:
+            break
+        solrhash = {}
+        solrhash= json.loads(row[0])
+        
+        idx = 0;
+        solrhash['geos'] = []
+        for locn in solrhash['locations']:
+            geopair = str(locn['provdrlocnlatitude'])  + "," + str(locn['provdrlocnlongitude'])
+            solrhash['geos'].append(geopair)
+   
+        del(solrhash['locations'])
+        
+        specialities = []
+        for locn in solrhash['specialities']:
+            specialities.append(locn['specialty'])
+            
+        solrhash['specialities'] = specialities
+      #  print solrhash['specialities']
+        del solrhash['networks']           
+        del solrhash['programs']
+        del solrhash['languages']           
+        
+        tosolr =   json.dumps(solrhash) 
+    #    print tosolr
+        headers = {'Content-type': 'application/json'}
+     #   r = requests.post('http://172.22.101.104:8983/solr/provider/update?commit=true', data="[" + json.dumps(py) +"]", headers=headers)
+        r = requests.post('http://localhost:8984/solr/provider/update?commit=true&overwrite=true', data="[" + json.dumps(solrhash) +"]", headers=headers)
+        #print response.read()
+        idx += 1
+        if idx%1000 == 0:
+            print idx
+    
+    
 sqlQ = True 
 dpath = "."         
-make_json_providers()
-
+#make_json_providers()
+push_to_solr()
 
 
     

@@ -6,7 +6,7 @@ job:
     step1:
       name: CleanKeen-1
       description: Clean keen staging 
-      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N0onenose'
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
       type: SQL
       file: app/etl/clear_keenstage.sql
       async: True
@@ -14,7 +14,7 @@ job:
     step2:
       name: GetURL-2
       type: python
-      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N0onenose'
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
       file: app/etl/getkeenurl
       description: Load Keen URL
       async: True

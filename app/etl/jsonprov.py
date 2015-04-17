@@ -40,7 +40,7 @@ def make_json_providers():
     
     #start threads
     start_consumers(10)
-    conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     cur=conn3.cursor()
     cur.execute("Select provdrkey from  h_provdr d  limit 50")
     
@@ -61,7 +61,7 @@ def make_json_providers():
 def service_single_provider(svcque,threadno): 
     if not sqlQ:
         fjson = open(dpath + "/jsonout"+str(threadno)+".dat" , "w")
-    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     cur5=conn.cursor()
     cnt = 0
     start_trx = True
@@ -184,7 +184,7 @@ def service_single_provider(svcque,threadno):
             
             
          #bundle sql    
-         sql = """   
+        sql = """   
            select distinct bundleid      from   
            mgeo_vcprovdrlocn b,
            m_vcpractspecl c,
@@ -200,21 +200,20 @@ def service_single_provider(svcque,threadno):
            and g.provdrlocnpractspeclkey = f.provdrlocnpractspeclkey
            and c.practspeclcode = i.practicecode
            and b.provdrkey = 550
-         """
-       cur3=conn.cursor()
-#            cur3.execute("Select * from vcpractspecl c,m_vcprovdrlocnpractspecl e where e.provdrlocnkey = %s and e.practspeclkey = c.practspeclkey" % (providerlocn['provdrlocnkey']))
-       cur3.execute(sql % (provider['provdrkey']))
-       rowspract = cur3.fetchall()
-       for rowpract in rowspract:
-           cols = gettabcols(cur3.description,"bundleid")
+        """
+        cur3=conn.cursor()
+        cur3.execute(sql % (provider['provdrkey']))
+        rowspract = cur3.fetchall()
+        bundles = []        
+        for rowpract in rowspract:
+            cols = gettabcols(cur3.description,"bundleid")
 
-           bundles = []
-           for k,v in cols.items():
+            for k,v in cols.items():
                try :
                    bundles.append( rowpract[k].strip())
                except:
                    bundles.append( rowpract[k])
-                   
+           
 
         provider['bundles'] =  bundles  
          
@@ -359,7 +358,7 @@ def service_single_provider(svcque,threadno):
 def push_to_solr():
 
     #provdrkey, locations geocodes, hospital names, specialties,provdr is facility,major clasification,name,lastname,firstname
-    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     cur=conn.cursor(name='scrollit')
     sql = "select provdrjson from provider_json"
     cur.execute(sql)

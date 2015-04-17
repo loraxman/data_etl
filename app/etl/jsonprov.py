@@ -183,7 +183,41 @@ def service_single_provider(svcque,threadno):
             provider['specialities'].append(practspecl)   
             
             
-        
+         #bundle sql    
+         sql = """   
+           select distinct bundleid      from   
+           mgeo_vcprovdrlocn b,
+           m_vcpractspecl c,
+           l_provdrlocnpractspecl_practspecl e,
+           l_provdrlocnpractspecl_provdrlocn f,
+           h_provdrlocnpractspecl g,
+           "CBOR" i
+           where 
+           
+           e.practspeclkey = c.practspeclkey
+           and f.provdrlocnkey = b.provdrlocnkey  
+           and g.provdrlocnpractspeclkey = e.provdrlocnpractspeclkey
+           and g.provdrlocnpractspeclkey = f.provdrlocnpractspeclkey
+           and c.practspeclcode = i.practicecode
+           and b.provdrkey = 550
+         """
+       cur3=conn.cursor()
+#            cur3.execute("Select * from vcpractspecl c,m_vcprovdrlocnpractspecl e where e.provdrlocnkey = %s and e.practspeclkey = c.practspeclkey" % (providerlocn['provdrlocnkey']))
+       cur3.execute(sql % (provider['provdrkey']))
+       rowspract = cur3.fetchall()
+       for rowpract in rowspract:
+           cols = gettabcols(cur3.description,"bundleid")
+
+           bundles = []
+           for k,v in cols.items():
+               try :
+                   bundles.append( rowpract[k].strip())
+               except:
+                   bundles.append( rowpract[k])
+                   
+
+        provider['bundles'] =  bundles  
+         
         sql = """
             select  h.provdrname, h.provdrisfacilityflag from vault.h_provdrhospital a,
              vault.l_provdrhospital_provdr_provdr b,

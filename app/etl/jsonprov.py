@@ -3,7 +3,7 @@ import json
 import threading
 import multiprocessing
 import psycopg2cffi
-import psycopg2
+#import psycopg2
 
 import Queue
 from time import sleep
@@ -42,7 +42,7 @@ def make_json_providers():
     start_consumers(10)
     conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     cur=conn3.cursor()
-    cur.execute("Select provdrkey from  h_provdr d  limit 50")
+    cur.execute("Select provdrkey from  h_provdr d  ")
     
     while True:
         row = cur.fetchone()
@@ -191,7 +191,7 @@ def service_single_provider(svcque,threadno):
            l_provdrlocnpractspecl_practspecl e,
            l_provdrlocnpractspecl_provdrlocn f,
            h_provdrlocnpractspecl g,
-           "CBOR" i
+           CBOR i
            where 
            
            e.practspeclkey = c.practspeclkey
@@ -199,7 +199,7 @@ def service_single_provider(svcque,threadno):
            and g.provdrlocnpractspeclkey = e.provdrlocnpractspeclkey
            and g.provdrlocnpractspeclkey = f.provdrlocnpractspeclkey
            and c.practspeclcode = i.practicecode
-           and b.provdrkey = 550
+           and b.provdrkey = %s
         """
         cur3=conn.cursor()
         cur3.execute(sql % (provider['provdrkey']))
@@ -402,8 +402,8 @@ def push_to_solr():
     
 sqlQ = True 
 dpath = "."         
-#make_json_providers()
-push_to_solr()
+make_json_providers()
+#push_to_solr()
 
 
     

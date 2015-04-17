@@ -200,9 +200,17 @@ def service_single_provider(svcque,threadno):
            and g.provdrlocnpractspeclkey = f.provdrlocnpractspeclkey
            and c.practspeclcode = i.practicecode
            and b.provdrkey = %s
+           union 
+             select distinct bundleid      from   
+             m_vcprovdr a,
+             CBOR b
+             where 
+             b.practicecode is null
+           and trim(a.provdrtype) = b.phtype
+           and a.provdrkey = %s
         """
         cur3=conn.cursor()
-        cur3.execute(sql % (provider['provdrkey']))
+        cur3.execute(sql % (provider['provdrkey'], (provider['provdrkey']))
         rowspract = cur3.fetchall()
         bundles = []        
         for rowpract in rowspract:

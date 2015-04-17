@@ -210,7 +210,7 @@ def service_single_provider(svcque,threadno):
            and a.provdrkey = %s
         """
         cur3=conn.cursor()
-        cur3.execute(sql % (provider['provdrkey'], (provider['provdrkey']))
+        cur3.execute(sql % (provider['provdrkey'], (provider['provdrkey'])))
         rowspract = cur3.fetchall()
         bundles = []        
         for rowpract in rowspract:

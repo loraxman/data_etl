@@ -149,22 +149,24 @@ def service_single_provider(svcque,threadno):
          
         provider['specialities'] = []
         sql = """
-             select distinct a.amaspeclgroupcode as specialty
-             from m_vcamaspeclgrouppractspecl a,
-             mgeo_vcprovdrlocn b,
-             m_vcpractspecl c,
-             l_provdrlocnpractspecl_practspecl e,
-             l_provdrlocnpractspecl_provdrlocn f,
-             h_provdrlocnpractspecl g
-             where 
-             a.practspeclkey = c.practspeclkey
-             and e.practspeclkey = c.practspeclkey
-             and f.provdrlocnkey = b.provdrlocnkey  
-             and g.provdrlocnpractspeclkey = e.provdrlocnpractspeclkey
-             and g.provdrlocnpractspeclkey = f.provdrlocnpractspeclkey
-             and b.provdrkey = %d
-    
-       """
+            select distinct c.practspecldescr as specialty, practspeclcode as specialtyId,provdrlocnpractspeclprimspeclflag as isPrimary
+            from
+            mgeo_vcprovdrlocn b,
+            m_vcpractspecl c,
+            l_provdrlocnpractspecl_practspecl e,
+            l_provdrlocnpractspecl_provdrlocn f,
+            h_provdrlocnpractspecl g,
+            s_provdrlocnpractspecl h
+            where 
+            
+            e.practspeclkey = c.practspeclkey
+            and f.provdrlocnkey = b.provdrlocnkey  
+            and g.provdrlocnpractspeclkey = e.provdrlocnpractspeclkey
+            and g.provdrlocnpractspeclkey = f.provdrlocnpractspeclkey
+            and h.provdrlocnpractspeclkey = g.provdrlocnpractspeclkey             
+            and b.provdrkey = %d
+     
+        """
         cur3=conn.cursor()
 #            cur3.execute("Select * from vcpractspecl c,m_vcprovdrlocnpractspecl e where e.provdrlocnkey = %s and e.practspeclkey = c.practspeclkey" % (providerlocn['provdrlocnkey']))
         cur3.execute(sql % (provider['provdrkey']))

@@ -291,6 +291,14 @@ def service_single_provider(svcque,threadno):
             cols = gettabcols(cur2.description,"*")            
             for k,v in cols.items():
                 try:
+                    if v == "master_category_description":
+                        if rowloc[k].find("CONCENTRIC") != -1:
+                            providernetworks['mstr_type'] = "C"
+                        elif rowloc[k].find("MULTI-TIER") != -1:
+                            providernetworks['mstr_type'] = "M"
+                        else:
+                            providernetworks['mstr_type'] = "U"
+                            
                     providernetworks[v] = rowloc[k].strip()
                 except:
                     providernetworks[v] = rowloc[k]

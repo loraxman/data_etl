@@ -280,7 +280,7 @@ def service_single_provider(svcque,threadno):
         and h.provdrkey = %d
         """
         #Note replace below to extend out for par/Non par
-        sql = "select category_code, master_category_description, master_category_code, cast(cast (base_net_id_no as integer) as varchar) from staging.srvgrpprovass where pin = %s"
+        sql = "select category_code, master_category_description, master_category_code, cast(cast (base_net_id_no as integer) as varchar) from staging.srvgrpprovass where pin = '%s''"
         cur2.close()
         cur2=conn.cursor()
         cur2.execute(sql % (provider['provdrid']))
@@ -298,8 +298,8 @@ def service_single_provider(svcque,threadno):
                             providernetworks['mstr_type'] = "M"
                         else:
                             providernetworks['mstr_type'] = "U"
-                            
-                    providernetworks[v] = rowloc[k].strip()
+                    else:        
+                        providernetworks[v] = rowloc[k].strip()
                 except:
                     providernetworks[v] = rowloc[k]
                     

@@ -18,7 +18,7 @@ def gettabcols(meta,tabname,notcols=None):
     retcols = {}
     idx = 0
     for col in meta:
-        if col.name.find(tabname) != -1:
+        if col.name.find(tabname) != -1 or tabname=="*":
             if notcols and col.name.find(notcols) == -1:
                 retcols[idx] = col.name
             elif notcols == None :
@@ -172,7 +172,7 @@ def service_single_provider(svcque,threadno):
         cur3.execute(sql % (provider['provdrkey']))
         rowspract = cur3.fetchall()
         for rowpract in rowspract:
-            cols = gettabcols(cur3.description,"specialty")
+            cols = gettabcols(cur3.description,"*")
 
             practspecl = {}
             for k,v in cols.items():
@@ -279,15 +279,16 @@ def service_single_provider(svcque,threadno):
         and i.netwkcategorykey = c.netwkcategorykey
         and h.provdrkey = %d
         """
-        
+        #Note replace below to extend out for par/Non par
+        sql = "select category_code, master_category_description, master_category_code, cast(cast (base_net_id_no as integer) as varchar) from staging.srvgrpprovass where pin = %s"
         cur2.close()
         cur2=conn.cursor()
-        cur2.execute(sql % (provider['provdrkey']))
+        cur2.execute(sql % (provider['provdrid']))
         rowsnet = cur2.fetchall()
         provider['networks'] = []
         for rowloc in rowsnet:
             providernetworks={}
-            cols = gettabcols(cur2.description,"net")            
+            cols = gettabcols(cur2.description,"*")            
             for k,v in cols.items():
                 try:
                     providernetworks[v] = rowloc[k].strip()
@@ -364,6 +365,67 @@ def service_single_provider(svcque,threadno):
                 print "thread %d  at: %d" % (threadno,cnt)
             svcque.task_done()
 
+def bundle_search():
+    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    sql = """
+    select bundleid,bundlename,practice_descr as specialty, procedure_main as dse_term from staging.proceduremapping a,
+    CBOR b
+    where a.practice_code = b.practicecode
+    order by bundleid
+    """    
+    sqltaxo = """
+    select distinct \"QUERY\" from 
+    condition_specialty a,
+    staging.proceduremapping b
+    where b.practice_descr = a."DISPLAY"
+    and b.practice_descr = '%s'
+    """
+    
+    cur = conn.cursor()
+    curtaxo = conn.cursor()
+    cur.execute(sql)
+    rows = cur.fetchall()
+    prevbundleid  = -1
+    bundle = {}
+    for row in rows:
+        if prevbundleid != row[0] or prevbundleid==-1:
+            print bundle
+            #reduce hashes to arrays
+            dse = []
+            specl = []
+            if bundle.has_key('dse_terms'):
+                for k,v in bundle['dse_terms'].iteritems():
+                    dse.append(v)
+                bundle['dse_terms'] = dse
+                for k,v in bundle['specialties'].iteritems():
+                    specl.append(v)
+                bundle['specialties'] = specl
+                #zip through specialties and attach taxonmy illness terms to this bundle
+                terms = []
+                for sp in dse:
+                    curtaxo.execute(sqltaxo % sp)
+                    termrows = curtaxo.fetchall()
+                    print len(termrows)
+               
+                    for t in termrows:
+                        terms.append(t[0])
+                bundle['terms'] = terms
+                headers = {'Content-type': 'application/json'}
+                  #   r = requests.post('http://172.22.101.104:8983/solr/provider/update?commit=true', data="[" + json.dumps(py) +"]", headers=headers)
+                r = requests.post('http://localhost:8984/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
+                       
+                print bundle
+                
+            bundle = {}
+            prevbundleid = row[0]
+            bundle['bundleid'] = row[0]
+            bundle['name'] = row[1]
+            bundle['dse_terms'] = {}
+            bundle['specialties'] = {}
+        bundle['dse_terms'][row[2]] = row[2]
+        bundle['specialties'][row[3]] = row[3]
+        
+   
 
 def push_to_solr():
 
@@ -412,8 +474,9 @@ def push_to_solr():
     
 sqlQ = True 
 dpath = "."         
-make_json_providers()
+#make_json_providers()
 #push_to_solr()
+bundle_search()
 
 
     

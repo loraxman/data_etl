@@ -9,7 +9,7 @@ import Queue
 from time import sleep
 import zlib
 import requests
-
+import time
 import sys
 
 queue =  Queue.Queue()
@@ -42,7 +42,7 @@ def make_json_providers():
     start_consumers(10)
     conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     cur=conn3.cursor()
-    cur.execute("Select provdrkey from  h_provdr d  ")
+    cur.execute("Select provdrkey from  h_provdr d where provdrkey between 1 and 12  ")
     
     while True:
         row = cur.fetchone()
@@ -149,7 +149,7 @@ def service_single_provider(svcque,threadno):
          
         provider['specialities'] = []
         sql = """
-            select distinct c.practspecldescr as specialty, practspeclcode as specialtyId,provdrlocnpractspeclprimspeclflag as isPrimary
+            select distinct c.practspecldescr as specialty, practspeclcode as specialtyid,provdrlocnpractspeclprimspeclflag as isPrimary
             from
             mgeo_vcprovdrlocn b,
             m_vcpractspecl c,
@@ -167,24 +167,31 @@ def service_single_provider(svcque,threadno):
             and b.provdrkey = %d
      
         """
+        sql = """
+        
+
+        select 
+        '{' || '"specialty":' || to_json(trim(practice_description) ) ||','
+                 '"specialtyid":' || to_json(trim(practice_code)) || ',"isPrimary":' || to_json(trim(prim_spec_ind)) || '}'
+                 from provsrvlocspec
+                 where pin = '%s'
+
+         """
+
         cur3=conn.cursor()
 #            cur3.execute("Select * from vcpractspecl c,m_vcprovdrlocnpractspecl e where e.provdrlocnkey = %s and e.practspeclkey = c.practspeclkey" % (providerlocn['provdrlocnkey']))
-        cur3.execute(sql % (provider['provdrkey']))
+        start_time = time.time() 
+        cur3.execute(sql % (provider['provdrid']))
+        #print("--- %s Specialty seconds ---" % (time.time() - start_time)) 
         rowspract = cur3.fetchall()
         for rowpract in rowspract:
-            cols = gettabcols(cur3.description,"*")
 
-            practspecl = {}
-            for k,v in cols.items():
-                try :
-                    practspecl[v] = rowpract[k].strip()
-                except:
-                    practspecl[v] = rowpract[k]
-                    
-
+            practspecl = json.loads(rowpract[0])
             provider['specialities'].append(practspecl)   
             
+        cur3.close()
             
+        #print("--- %s Specialty seconds ---" % (time.time() - start_time)) 
          #bundle sql    
         sql = """   
            select distinct bundleid      from   
@@ -212,7 +219,9 @@ def service_single_provider(svcque,threadno):
            and a.provdrkey = %s
         """
         cur3=conn.cursor()
+        start_time=time.time()
         cur3.execute(sql % (provider['provdrkey'], (provider['provdrkey'])))
+
         rowspract = cur3.fetchall()
         bundles = []        
         for rowpract in rowspract:
@@ -226,7 +235,7 @@ def service_single_provider(svcque,threadno):
            
 
         provider['bundles'] =  bundles  
-         
+        #print("--- %s Bundles seconds ---" % (time.time() - start_time)) 
         sql = """
             select  h.provdrname, h.provdrisfacilityflag from vault.h_provdrhospital a,
              vault.l_provdrhospital_provdr_provdr b,
@@ -245,6 +254,7 @@ def service_single_provider(svcque,threadno):
          """  
         cur2.close()
         cur2=conn.cursor()
+        start_time = time.time()
         cur2.execute(sql % (provider['provdrkey']))
         rowshosp = cur2.fetchall()
         provider['hospitals'] = []
@@ -259,6 +269,7 @@ def service_single_provider(svcque,threadno):
                     
             provider['hospitals'].append(providerhospitals)
 
+        #print("--- %s Hosp seconds ---" % (time.time() - start_time))
         sql = """
         select distinct c.netwkcategorycode, netwkcategorydescr
         from 
@@ -296,6 +307,7 @@ def service_single_provider(svcque,threadno):
         from staging.srvgrpprovass where pin = '%s';        """
         cur2.close()
         cur2=conn.cursor()
+        start_time = time.time()
         cur2.execute(sql % (provider['provdrid']))
         rowsnet = cur2.fetchall()
   #      cols = gettabcols(cur2.description,"*")               
@@ -305,6 +317,7 @@ def service_single_provider(svcque,threadno):
             providernetworks=json.loads(rowloc[0])
             provider['networks'].append(providernetworks)
 
+        #print("--- %s Network seconds ---" % (time.time() - start_time))
         #provder quality program
         sql = """
         select qualityprogramdescr,qualityprogramcode from vault.h_qualityprogram a, 
@@ -328,6 +341,7 @@ def service_single_provider(svcque,threadno):
              
         cur2.close()
         cur2=conn.cursor()
+        start_time = time.time()
         cur2.execute(sql % (provider['provdrkey']))
         rowsnet = cur2.fetchall()
         provider['programs'] = []
@@ -344,7 +358,8 @@ def service_single_provider(svcque,threadno):
 
 
    #     print len(json.dumps(provider))
-        jsoncompressed = zlib.compress(json.dumps(provider))
+        #jsoncompressed = zlib.compress(json.dumps(provider))
+        #print("--- %s Quality seconds ---" % (time.time() - start_time))
         provdrjson = json.dumps(provider)
         provdrjson = provdrjson.replace("'","''")
         if sqlQ:
@@ -357,7 +372,7 @@ def service_single_provider(svcque,threadno):
             if curjson.rowcount == 0:
                 sql = "insert into provider_json (provdrid, provdrkey,provdrjson) values ('%s','%s','%s') " % (provider['provdrid'],provider['provdrkey'],provdrjson)
                 curjson.execute (sql)
-         #   curjson.execute("commit")
+            curjson.execute("commit")
 #            sql = "insert into provider_json_compress (provdrid, provdrkey,provider_json_ztext) values ('%s','%s',%s) " % (provider['provdrid'],provider['provdrkey'],psycopg2cffi.Binary(jsoncompressed))
   #          curjson.execute (sql)
             svcque.task_done()
@@ -397,7 +412,7 @@ def bundle_search():
     bundle = {}
     for row in rows:
         if prevbundleid != row[0] or prevbundleid==-1:
-            print bundle
+            #print bundle
             #reduce hashes to arrays
             dse = []
             specl = []
@@ -482,9 +497,9 @@ def push_to_solr():
     
 sqlQ = True 
 dpath = "."         
-#make_json_providers()
+make_json_providers()
 #push_to_solr()
-bundle_search()
+#bundle_search()
 
 
     

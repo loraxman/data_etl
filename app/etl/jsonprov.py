@@ -280,15 +280,15 @@ def service_single_provider(svcque,threadno):
         and h.provdrkey = %d
         """
         #Note replace below to extend out for par/Non par
-        sql = "select distinct category_code, tier, master_category_description, master_category_code, cast(cast (base_net_id_no as integer) as varchar) from staging.srvgrpprovass where pin = '%s'"
+        sql = "select distinct category_code, current_tier, master_category_description, master_category_code, cast(cast (base_net_id_no as integer) as varchar) from staging.srvgrpprovass where pin = '%s'"
         cur2.close()
         cur2=conn.cursor()
         cur2.execute(sql % (provider['provdrid']))
         rowsnet = cur2.fetchall()
+        cols = gettabcols(cur2.description,"*")               
         provider['networks'] = []
         for rowloc in rowsnet:
             providernetworks={}
-            cols = gettabcols(cur2.description,"*")            
             for k,v in cols.items():
                 try:
                     if v == "master_category_description":
@@ -296,6 +296,10 @@ def service_single_provider(svcque,threadno):
                             providernetworks['mstr_type'] = "C"
                         elif rowloc[k].find("MULTI-TIER") != -1:
                             providernetworks['mstr_type'] = "M"
+                        elif rowloc[k] == 'AEXCEL':
+                            providernetworks['mstr_type'] = "C"                            
+                        elif rowloc[k] == 'AEXCELP':
+                            providernetworks['mstr_type'] = "M"                            
                         else:
                             providernetworks['mstr_type'] = "U"
                     else:        

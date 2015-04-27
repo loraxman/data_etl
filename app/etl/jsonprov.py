@@ -292,7 +292,7 @@ def service_single_provider(svcque,threadno):
         when strpos(master_category_description,'CONCENTRIC') > 0  then '"mstr_type":'||'"C"'
         else '"mstr_type":'||'"U"'
         end  ||  ',' 
-        '"base_net_id_no":' || to_json(cast (base_net_id_no as integer) ) || '}'
+        '"base_net_id_no":' || '"' || to_json(cast (base_net_id_no as integer) ) || '" }'
         from staging.srvgrpprovass where pin = '%s';        """
         cur2.close()
         cur2=conn.cursor()

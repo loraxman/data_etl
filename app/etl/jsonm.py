@@ -106,13 +106,17 @@ def service_single_provider(svcque,threadno):
               and d.langkey  = e.langkey
              and a.provdrkey = %s  
         """
+        sql = """
+        select distinct language_description from provlang 
+        where pin = '%s' 
+        """ 
         cur2=conn.cursor()
-        cur2.execute(sql % (provider['provdrkey']))
+        cur2.execute(sql % (provider['provdrid']))
         rowsloc = cur2.fetchall()
         provider['languages'] = []
+        cols = gettabcols(cur2.description,"lang")            
         for rowloc in rowsloc:
             providerlangs={}
-            cols = gettabcols(cur2.description,"lang")            
             for k,v in cols.items():
                 try:
                     providerlangs[v] = rowloc[k].strip()

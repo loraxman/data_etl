@@ -280,33 +280,29 @@ def service_single_provider(svcque,threadno):
         and h.provdrkey = %d
         """
         #Note replace below to extend out for par/Non par
-        sql = "select distinct category_code, current_tier, master_category_description, master_category_code, cast(cast (base_net_id_no as integer) as varchar) from staging.srvgrpprovass where pin = '%s'"
+  #      sql = "select distinct category_code, current_tier, master_category_description, master_category_code, cast(cast (base_net_id_no as integer) as varchar) from staging.srvgrpprovass where pin = '%s'"
+        sql = """
+        select  distinct '{' ||  '"category_code":' || to_json(trim(category_code)) || ',' || 
+        '"current_tier":' || to_json(current_tier)  || ',' ||
+        '"master_category_code":' || to_json(trim(master_category_code)) || ',' || 
+        case 
+        when trim(master_category_description)='AEXCELP' then '"mstr_type":'||'"M"'
+        when trim(master_category_description)='AEXCEL'  then '"mstr_type":'||'"C"'
+        when strpos(master_category_description,'MULTI') > 0  then '"mstr_type":'||'"M"'
+        when strpos(master_category_description,'CONCENTRIC') > 0  then '"mstr_type":'||'"C"'
+        else '"mstr_type":'||'"U"'
+        end  ||  ',' 
+        '"base_net_id_no":' || to_json(cast (base_net_id_no as integer) ) || '}'
+        from staging.srvgrpprovass where pin = '%s';        """
         cur2.close()
         cur2=conn.cursor()
         cur2.execute(sql % (provider['provdrid']))
         rowsnet = cur2.fetchall()
-        cols = gettabcols(cur2.description,"*")               
+  #      cols = gettabcols(cur2.description,"*")               
         provider['networks'] = []
         for rowloc in rowsnet:
-            providernetworks={}
-            for k,v in cols.items():
-                try:
-                    if v == "master_category_description":
-                        if rowloc[k].find("CONCENTRIC") != -1:
-                            providernetworks['mstr_type'] = "C"
-                        elif rowloc[k].find("MULTI-TIER") != -1:
-                            providernetworks['mstr_type'] = "M"
-                        elif rowloc[k] == 'AEXCEL':
-                            providernetworks['mstr_type'] = "C"                            
-                        elif rowloc[k] == 'AEXCELP':
-                            providernetworks['mstr_type'] = "M"                            
-                        else:
-                            providernetworks['mstr_type'] = "U"
-                    else:        
-                        providernetworks[v] = rowloc[k].strip()
-                except:
-                    providernetworks[v] = rowloc[k]
-                    
+           # providernetworks={}
+            providernetworks=json.loads(rowloc[0])
             provider['networks'].append(providernetworks)
 
         #provder quality program

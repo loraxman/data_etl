@@ -41,7 +41,7 @@ def make_json_providers():
     start_consumers(20)
     conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     cur=conn3.cursor()
-    cur.execute("Select provdrkey from  h_provdr d where provdrkey between 1 and 9999999999  ")
+    cur.execute("Select provdrkey from  h_provdr d  ")
     
     while True:
         row = cur.fetchone()
@@ -174,7 +174,7 @@ def service_single_provider(svcque,threadno):
         sql = """
         
 
-        select 
+        select distinct  
         '{' || '"specialty":' || to_json(trim(practice_description) ) ||','
                  '"specialtyid":' || to_json(trim(practice_code)) || ',"isPrimary":' || to_json(trim(prim_spec_ind)) || '}'
                  from provsrvlocspec
@@ -325,6 +325,7 @@ def service_single_provider(svcque,threadno):
         when trim(master_category_description)='AEXCEL'  then '"mstr_type":'||'"C"'
         when strpos(master_category_description,'MULTI') > 0  then '"mstr_type":'||'"M"'
         when strpos(master_category_description,'CONCENTRIC') > 0  then '"mstr_type":'||'"C"'
+        when strpos(master_category_description,'NATIONAL') > 0  then '"mstr_type":'||'"C"'
         else '"mstr_type":'||'"U"'
         end  ||  ',' 
         '"base_net_id_no":' || '"' || to_json(cast (base_net_id_no as integer) ) || '" }'

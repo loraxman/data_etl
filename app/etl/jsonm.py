@@ -38,7 +38,7 @@ def start_consumers(num_consume):
 def make_json_providers():
     
     #start threads
-    start_consumers(20)
+    start_consumers(15)
     conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     cur=conn3.cursor()
     cur.execute("Select provdrkey from  h_provdr d  ")

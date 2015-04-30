@@ -328,7 +328,20 @@ def service_single_provider(svcque,threadno):
         when strpos(master_category_description,'NATIONAL') > 0  then '"mstr_type":'||'"C"'
         else '"mstr_type":'||'"U"'
         end  ||  ',' 
-        '"base_net_id_no":' || '"' || to_json(cast (base_net_id_no as integer) ) || '" }'
+        '"base_net_id_no":' || '"' || to_json(cast (base_net_id_no as integer) ) || '" }',
+        md5('{' ||  '"category_code":' || to_json(trim(category_code)) || ',' || 
+        '"current_tier":' || to_json(current_tier)  || ',' ||
+         case 
+        when trim(master_category_description)='AEXCELP' then '"mstr_type":'||'"M"'
+        when trim(master_category_description)='AEXCEL'  then '"mstr_type":'||'"C"'
+        when strpos(master_category_description,'MULTI') > 0  then '"mstr_type":'||'"M"'
+        when strpos(master_category_description,'CONCENTRIC') > 0  then '"mstr_type":'||'"C"'
+        when strpos(master_category_description,'NATIONAL') > 0  then '"mstr_type":'||'"C"'
+        else '"mstr_type":'||'"U"'
+        end  ||  ',' 
+        '"base_net_id_no":' || '"' || to_json(cast (base_net_id_no as integer) ) || '" }'),
+                md5(
+        '"base_net_id_no":' || '"' || to_json(cast (base_net_id_no as integer) ) || '" }')
         from staging.srvgrpprovass where pin = '%s';        """
         cur2.close()
         cur2=conn.cursor()
@@ -337,10 +350,14 @@ def service_single_provider(svcque,threadno):
         rowsnet = cur2.fetchall()
   #      cols = gettabcols(cur2.description,"*")               
         provider['networks'] = []
+        provider['netwkhashes'] = []
+        provider['netwkcathashes'] = []
         for rowloc in rowsnet:
            # providernetworks={}
             providernetworks=json.loads(rowloc[0])
             provider['networks'].append(providernetworks)
+            provider['netwkhashes'].append(rowloc[1])
+            provider['netwkcathashes'].append(rowloc[2])
 
         #print("--- %s Network seconds ---" % (time.time() - start_time))
         #provder quality program

@@ -358,7 +358,6 @@ def service_single_provider(svcque,threadno):
             provider['networks'].append(providernetworks)
             provider['netwkhashes'].append(rowloc[1])
             provider['netwkcathashes'].append(rowloc[2])
-
         #print("--- %s Network seconds ---" % (time.time() - start_time))
         #provder quality program
         sql = """
@@ -431,7 +430,7 @@ def service_single_provider(svcque,threadno):
             #svcque.task_done()
 
 def bundle_search():
-    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     sql = """
     select bundleid,bundlename,practice_descr as specialty, procedure_main as dse_term from staging.proceduremapping a,
     CBOR b
@@ -477,7 +476,8 @@ def bundle_search():
                 bundle['terms'] = terms
                 headers = {'Content-type': 'application/json'}
                   #   r = requests.post('http://172.22.101.104:8983/solr/provider/update?commit=true', data="[" + json.dumps(py) +"]", headers=headers)
-                r = requests.post('http://localhost:8984/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
+                r = requests.post('http://172.22.100.88:8983/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
+                #r = requests.post('http://localhost:8984/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
                        
                 print bundle
                 
@@ -529,8 +529,8 @@ def push_to_solr():
         tosolr =   json.dumps(solrhash) 
     #    print tosolr
         headers = {'Content-type': 'application/json'}
-     #   r = requests.post('http://172.22.101.104:8983/solr/provider/update?commit=true', data="[" + json.dumps(py) +"]", headers=headers)
-        r = requests.post('http://localhost:8984/solr/provider/update?commit=true&overwrite=true', data="[" + json.dumps(solrhash) +"]", headers=headers)
+        r = requests.post('http://172.22.101.104:8983/solr/provider/update?commit=true', data="[" + json.dumps(py) +"]", headers=headers)
+        #r = requests.post('http://localhost:8984/solr/provider/update?commit=true&overwrite=true', data="[" + json.dumps(solrhash) +"]", headers=headers)
         #print response.read()
         idx += 1
         if idx%1000 == 0:
@@ -539,9 +539,9 @@ def push_to_solr():
     
 sqlQ = True 
 dpath = "."         
-make_json_providers()
+#make_json_providers()
 #push_to_solr()
-#bundle_search()
+bundle_search()
 
 
     

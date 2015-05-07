@@ -12,6 +12,8 @@ import requests
 import time
 import sys
 
+from elasticsearch import Elasticsearch
+
 queue =  Queue()
 threads = []
 def gettabcols(meta,tabname,notcols=None):
@@ -469,8 +471,8 @@ def service_single_provider_staging(svcque,threadno):
                 except:
                     #svcque.task_done()
                     break 
-                except:
-                    print "end of queue"
+        except:
+            print "end of queue"
             #svcque.task_done()
             continue
         sql = """
@@ -496,7 +498,6 @@ def service_single_provider_staging(svcque,threadno):
             from provsrvloc a, provider_type c
             where pin = '%s'
             and trim(a.provider_type) = trim(c."PROVIDER_TYPE_CD");
-
         """
         
         cur5.execute(sql % (provdrkey))
@@ -1001,7 +1002,7 @@ def push_to_solr():
     
 def elastic_bundle():
     es = Elasticsearch(hosts = ['172.22.100.88'])
-    if not ( es.indices.exists('typeahead'):
+    if not ( es.indices.exists('typeahead')):
         es.indices.exists('typeahead')
         request_body = {
          "settings" : {
@@ -1009,7 +1010,7 @@ def elastic_bundle():
              "number_of_replicas": 0
             }
          }
-         res = es.indices.create(index = 'typeahead', body=request_body)    
+        res = es.indices.create(index = 'typeahead', body=request_body)    
     
   
     bulk_data = [] 

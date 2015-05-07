@@ -463,9 +463,9 @@ def service_single_provider_staging(svcque,threadno):
                         curjson.execute("commit")
                     else:
                         fjson.close()
-                     print "commit final ... thread %d  at: %d" % (threadno,cnt)
+                    print "commit final ... thread %d  at: %d" % (threadno,cnt)
                      #svcque.task_done()
-                     break 
+                    break 
                 except:
                     #svcque.task_done()
                     break 

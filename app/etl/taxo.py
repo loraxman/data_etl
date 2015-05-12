@@ -3,8 +3,8 @@ import json
 import threading
 import multiprocessing
 from multiprocessing import Process, Queue
-import psycopg2cffi
-from nltk import bigrams
+import psycopg2
+#from nltk import bigrams
 import pandas as pd
 #import psycopg2
 
@@ -39,11 +39,10 @@ def generate_cpt_bigrams(conn):
 
 
 def bundle_search():
-    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
+    conn = psycopg2.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     sql = """
-    select bundleid,bundlename,practice_descr as specialty, procedure_main as dse_term ,cpt_code from staging.proceduremapping a,
-    CBOR b
-    where a.practice_code = b.practicecode
+    select bundleid,bundlename,practice_descr as specialty, procedure_main as dse_term ,cpt_code from CBOR b
+    LEFT OUTER JOIN  staging.proceduremapping  a  on a.practice_code = b.practicecode
     order by bundleid
     """    
     sqltaxo = """
@@ -51,10 +50,10 @@ def bundle_search():
     condition_specialty a,
     staging.proceduremapping b
     where b.practice_descr = a."DISPLAY"
-    and b.practice_descr = '%s'
+    and translate(b.practice_descr,'''','') = '%s'
     """
     sqlcpt = """
-    select \"PRCDR_DSCRPTN\" from 
+    select lower(\"PRCDR_DSCRPTN\") from 
     cpt_codes where \"PRCDR_CD\" = '%s'
     """
     
@@ -70,18 +69,28 @@ def bundle_search():
             #print bundle
             #reduce hashes to arrays
             dse = []
+            dse_lower = []
             specl = []
+            specl_lower=[]
             if bundle.has_key('dse_terms'):
                 for k,v in bundle['dse_terms'].iteritems():
+                    if not v:
+                        continue
                     dse.append(v)
+                    dse_lower.append(v.lower())
                 bundle['dse_terms'] = dse
+                bundle['dse_terms_lower'] = dse_lower
                 for k,v in bundle['specialties'].iteritems():
+                    if not v:
+                        continue
                     specl.append(v)
+                    specl_lower.append(v.lower())
                 bundle['specialties'] = specl
+                bundle['specialties_lower'] = specl_lower
                 #zip through specialties and attach taxonmy illness terms to this bundle
                 terms = []
                 for sp in dse:
-                    curtaxo.execute(sqltaxo % sp)
+                    curtaxo.execute(sqltaxo % sp.replace("'",""))
                     termrows = curtaxo.fetchall()
                     print len(termrows)
                
@@ -94,8 +103,8 @@ def bundle_search():
                     bundle['cpt_descr'] = rowcpt[0]
                 headers = {'Content-type': 'application/json'}
                 #   r = requests.post('http://172.22.101.104:8983/solr/provider/update?commit=true', data="[" + json.dumps(py) +"]", headers=headers)
-               # r = requests.post('http://172.22.100.88:8983/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
-                r = requests.post('http://localhost:8984/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
+     #           r = requests.post('http://172.22.100.88:8983/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
+                r = requests.post('http://localhost:8983/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
                 
                 print bundle
                 
@@ -103,11 +112,17 @@ def bundle_search():
             prevbundleid = row[0]
             bundle['bundleid'] = row[0]
             bundle['name'] = row[1]
-            
+            bundle['lowered_name'] = row[1].lower() 
             bundle['dse_terms'] = {}
             bundle['specialties'] = {}
-        bundle['dse_terms'][row[2]] = row[2]
-        bundle['specialties'][row[3]] = row[3]
+            bundle['dse_terms_lower'] = {}
+            bundle['specialties_lower'] = {}
+        bundle['dse_terms'][row[3]] = row[3]
+        bundle['specialties'][row[2]] = row[2]
+        if row[3]:
+            bundle['dse_terms_lower'][row[3]] = row[3].lower()
+        if row[2]:
+            bundle['specialties_lower'][row[2]] = row[2].lower()
         
    
 
@@ -237,7 +252,7 @@ sqlQ = True
 dpath = "."         
 
 #push_to_solr()
-#bundle_search()
+bundle_search()
 #elastic_bundle()
 
 

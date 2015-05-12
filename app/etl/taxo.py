@@ -41,16 +41,17 @@ def generate_cpt_bigrams(conn):
 def bundle_search():
     conn = psycopg2.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     sql = """
-    select bundleid,bundlename,practice_descr as specialty, procedure_main as dse_term ,cpt_code from CBOR b
-    LEFT OUTER JOIN  staging.proceduremapping  a  on a.practice_code = b.practicecode
-    order by bundleid
+
+       select bundleid,bundlename,trim(practice_descr) as specialty, trim(procedure_main) as dse_term ,cpt_code from CBOR b
+             LEFT OUTER JOIN  staging.proceduremapping  a  on a.practice_code = b.practicecode
+                   order by bundleid
     """    
     sqltaxo = """
     select distinct \"QUERY\" from 
     condition_specialty a,
     staging.proceduremapping b
-    where b.practice_descr = a."DISPLAY"
-    and translate(b.practice_descr,'''','') = '%s'
+    where b.practice_descr like  a."DISPLAY" || '%s'
+    and lower(trim(translate(b.practice_descr,'''',''))) like '%s' || '%s'
     """
     sqlcpt = """
     select lower(\"PRCDR_DSCRPTN\") from 
@@ -71,28 +72,31 @@ def bundle_search():
             dse = []
             dse_lower = []
             specl = []
-            specl_lower=[]
+            specl_lower={}
             if bundle.has_key('dse_terms'):
                 for k,v in bundle['dse_terms'].iteritems():
                     if not v:
                         continue
                     dse.append(v)
-                    dse_lower.append(v.lower())
+                    dse.append(v.lower())
                 bundle['dse_terms'] = dse
                 bundle['dse_terms_lower'] = dse_lower
                 for k,v in bundle['specialties'].iteritems():
                     if not v:
                         continue
                     specl.append(v)
-                    specl_lower.append(v.lower())
+                    specl.append(v.lower())
+                    specl_lower[v.lower()] = v.lower()
                 bundle['specialties'] = specl
-                bundle['specialties_lower'] = specl_lower
+               # bundle['specialties_lower'] = specl_lower
                 #zip through specialties and attach taxonmy illness terms to this bundle
                 terms = []
-                for sp in dse:
-                    curtaxo.execute(sqltaxo % sp.replace("'",""))
+                for k,v in specl_lower.iteritems():
+                    qry = (sqltaxo %  ('%', k.replace("'","").lower(), '%'))
+                    print qry
+                    curtaxo.execute(qry)
                     termrows = curtaxo.fetchall()
-                    print len(termrows)
+                    print k, len(termrows)
                
                     for t in termrows:
                         terms.append(t[0])
@@ -103,8 +107,8 @@ def bundle_search():
                     bundle['cpt_descr'] = rowcpt[0]
                 headers = {'Content-type': 'application/json'}
                 #   r = requests.post('http://172.22.101.104:8983/solr/provider/update?commit=true', data="[" + json.dumps(py) +"]", headers=headers)
-     #           r = requests.post('http://172.22.100.88:8983/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
-                r = requests.post('http://localhost:8983/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
+                r = requests.post('http://172.22.100.88:8983/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
+            #    r = requests.post('http://localhost:8983/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
                 
                 print bundle
                 
@@ -115,14 +119,12 @@ def bundle_search():
             bundle['lowered_name'] = row[1].lower() 
             bundle['dse_terms'] = {}
             bundle['specialties'] = {}
-            bundle['dse_terms_lower'] = {}
-            bundle['specialties_lower'] = {}
         bundle['dse_terms'][row[3]] = row[3]
         bundle['specialties'][row[2]] = row[2]
         if row[3]:
-            bundle['dse_terms_lower'][row[3]] = row[3].lower()
+            bundle['dse_terms'][row[3].lower()] = row[3].lower()
         if row[2]:
-            bundle['specialties_lower'][row[2]] = row[2].lower()
+            bundle['specialties'][row[2].lower()] = row[2].lower()
         
    
 

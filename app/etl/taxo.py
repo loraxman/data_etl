@@ -52,13 +52,25 @@ def bundle_search():
     staging.proceduremapping b
     where b.practice_descr like  a."DISPLAY" || '%s'
     and lower(trim(translate(b.practice_descr,'''',''))) like '%s' || '%s'
+    and lower(trim(translate(b.practice_descr,'''',''))) not in ('internal medicine','general practice','family practice')
+    and 1=2
     """
     sqlcpt = """
     select lower(\"PRCDR_DSCRPTN\") from 
     cpt_codes where \"PRCDR_CD\" = '%s'
     """
-    
+    sqlicd = "select cpt_code, bundlename, descr from bundle_icd_cpt where tot > 20000  "
+    exclude_practices=["internal medicine","general practice","family practice"]
     cur = conn.cursor()
+    cur.execute(sqlicd)
+
+    icds = {}
+    icdrows = cur.fetchall()
+    for row in icdrows:
+        if not icds.has_key(row[0]):
+            icds[row[0]] = []
+        icds[row[0]].append(row)
+
     curtaxo = conn.cursor()
     curcpt = conn.cursor()
     cur.execute(sql)
@@ -73,6 +85,7 @@ def bundle_search():
             dse_lower = []
             specl = []
             specl_lower={}
+            icdrepeats = {}
             if bundle.has_key('dse_terms'):
                 for k,v in bundle['dse_terms'].iteritems():
                     if not v:
@@ -105,19 +118,27 @@ def bundle_search():
                 rowcpt = curcpt.fetchone()
                 if rowcpt:
                     bundle['cpt_descr'] = rowcpt[0]
+                    if icds.has_key(row[4]):
+                        for cptrow in icds[row[4]]:
+                            if not icdrepeats.has_key(cptrow[2]):
+                                bundle['icds'].append(cptrow[2])
+                                icdrepeats[cptrow[2]] = cptrow[2]
+
                 headers = {'Content-type': 'application/json'}
                 #   r = requests.post('http://172.22.101.104:8983/solr/provider/update?commit=true', data="[" + json.dumps(py) +"]", headers=headers)
-                r = requests.post('http://172.22.100.88:8983/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
-            #    r = requests.post('http://localhost:8983/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
+               # r = requests.post('http://172.22.100.88:8983/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
+                r = requests.post('http://localhost:8983/solr/gettingstarted_shard1_replica2/update?commit=true&overwrite=true', data="[" + json.dumps(bundle) +"]", headers=headers)
                 
                 print bundle
                 
             bundle = {}
+
             prevbundleid = row[0]
             bundle['bundleid'] = row[0]
             bundle['name'] = row[1]
             bundle['lowered_name'] = row[1].lower() 
             bundle['dse_terms'] = {}
+            bundle['icds'] = []
             bundle['specialties'] = {}
         bundle['dse_terms'][row[3]] = row[3]
         bundle['specialties'][row[2]] = row[2]

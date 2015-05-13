@@ -790,7 +790,12 @@ def service_single_provider_staging(svcque,threadno):
 
 
         #call HL mapping
-        map_to_HLformat(provider)
+        hl_locs = map_to_HLformat(provider)
+        
+        #her we could no map each new hl_loc to a single row in our geo search table
+        
+        add_provdr_loc_table(conn, hl_locs,provider)
+        
    #     print len(json.dumps(provider))
         #jsoncompressed = zlib.compress(json.dumps(provider))
         #print("--- %s Quality seconds ---" % (time.time() - start_time))
@@ -825,13 +830,50 @@ def service_single_provider_staging(svcque,threadno):
 
 
 
+def add_provdr_loc_table(conn, hl_locs,provider):
+    sqlupd = """
+     update psearch_vcprovdrlocn3
+     set provdrkey = %s ,
+     provdrlocnlongitude = %s, 
+     provdrlocnlatitude  = %s, 
+     geom = ST_GeomFromText('POINT(' ||  cast(cast('%s' as float) *-1 as varchar) || ' ' || %s || ')',4326),
+     specialties = '%s',
+     bundles = '%s'
+     where pin = '%s'
+     and service_location_number = '%s'
+    """
+        
+        # curloc=conn.cursor()
+        #curloc.execute(sql % (provider['provdrkey'], providerlocn['provdrlocnlongitude'], providerlocn['provdrlocnlatitude'],\
+                #      providerlocn['provdrlocnlongitude'], providerlocn['provdrlocnlatitude'], json.dumps(provider['specialities']),\
+                # json.dumps(provider['bundles']), provider['provdrkey'],  providerlocn['provdrlocnid']))
+    sqlins = """
+     insert into psearch_vcprovdrlocn3 (provdrkey,service_location_number, provdrlocnlongitude,provdrlocnlatitude,
+     geom, specialities, bundles,location) values 
+     ('%s','%s', %s,%s, ST_GeomFromText('POINT(' ||  cast(cast('%s' as float) *-1 as varchar) || ' ' || %s || ')',4326),
+     '%s','%s','%s')
+     
+  
+    """
+    curloc=conn.cursor()
 
+    idx = 0
+    print len(hl_locs)
+    for loc in hl_locs:
+        curloc.execute(sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
+            provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], json.dumps(provider['specialities']),\
+            json.dumps(provider['bundles']),  \
+            json.dumps(loc).replace("'","''")))
+        idx += 1
+       # print idx
+        
 def map_to_HLformat(provider):
     pass
     #transform 'locations' array and denormalize provider
     hl_locs = map_to_HLlocations(provider)
     #denormalize provider
-    map_to_HLprovider(hl_locs,provider)
+    hl_locs = map_to_HLprovider(hl_locs,provider)
+    return hl_locs
     
     
 def map_to_HLprovider(hl_locs,provider):

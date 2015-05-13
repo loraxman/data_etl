@@ -863,7 +863,7 @@ def add_provdr_loc_table(conn, hl_locs,provider):
         curloc.execute(sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
             provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], json.dumps(provider['specialities']),\
             json.dumps(provider['bundles']),  \
-            json.dumps(loc).replace("'","''")))
+            json.dumps(sorted(loc, key=loc.get)).replace("'","''")))
         idx += 1
        # print idx
         

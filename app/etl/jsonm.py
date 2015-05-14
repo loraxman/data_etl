@@ -662,7 +662,7 @@ def service_single_provider_staging(svcque,threadno):
         svcl_latitude as provdrlocnlatitude,
         svcl_longitude as provdrlocnlongitude,
         addr_print_ind as provdrlocndisplayflag,
-        accept_new_patients_ind as provdrlocnacceptingNewPatients
+        accept_new_patients_ind as provdrlocnacceptingnewpatients
         from provsrvloc 
         where pin = '%s'
         """
@@ -673,7 +673,7 @@ def service_single_provider_staging(svcque,threadno):
         
         for rowloc in rowsloc:
             cols = gettabcols(cur2.description,"provdrlocn")
-        
+           
             providerlocn = {}
             for k,v in cols.items():
                 try:
@@ -906,7 +906,6 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
 
     idx = 0
     print len(hl_locs)
-    print provider_hosp
     
     for loc in hl_locs:
         provdrjson = loc
@@ -916,12 +915,21 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
             netwksjson = json.dumps(provider_networkloc[int(provider['locations'][idx]['provdrlocnid'])][0])
             netwkshashjson =  json.dumps(provider_networkloc[int(provider['locations'][idx]['provdrlocnid'])][1])
             netwkscathashjson =  json.dumps(provider_networkloc[int(provider['locations'][idx]['provdrlocnid'])][2])
-            print netkey, provider_networkloc.keys(), provider['provdrid']
+            #build up the networks,categories and tier strings
+            netwks = set([n['base_net_id_no'] for n in provider_networkloc[int(provider['locations'][idx]['provdrlocnid'])][0]])
+            cats = set([n['category_code'] for n in provider_networkloc[int(provider['locations'][idx]['provdrlocnid'])][0]])
+            tiers = set([n['current_tier'] for n in provider_networkloc[int(provider['locations'][idx]['provdrlocnid'])][0]])
+            netwkstr =  ",".join(netwks)
+            catsstr =  ",".join(cats)
+            tiersstr =  ",".join(tiers)
 
         else:
             netwksjson = "[]"
             netwkshashjson = "[]"
             netwkscathashjson = "[]"
+            netwkstr = ""
+            catsstr = ""
+            tiersstr = ""
             
         if provider_specl.has_key(int(netkey)):
             specljson = json.dumps(provider_specl[int(provider['locations'][idx]['provdrlocnid'])][0])
@@ -944,18 +952,9 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
         if provider_hosp.has_key(int(netkey)):
             provdrjson['hospitalAffiliations'] = provider_hosp[int(netkey)]
         
-        
-        print sqlupd % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
-                provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], \
-                specljson,\
-                json.dumps(provider['bundles']),  \
-                json.dumps(loc).replace("'","''"),\
-                netwksjson,\
-                netwkshashjson,\
-                netwkscathashjson ,\
-                speclhashjson,\
-                json.dumps(provdrjson).replace("'","''"),\
-                provider['provdrkey'],provider['locations'][idx]['provdrlocnid'])
+        provdrjson['categoryCode'] = catsstr
+        provdrjson['network'] = netwkstr
+        provdrjson['tier'] = tiersstr
         
         
         curloc.execute(sqlupd % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
@@ -1002,7 +1001,9 @@ def map_to_HLprovider(hl_locs,provider):
         "provdrlastname":"lastName",
         "provdrgender":"gender",
         "provdrpin":"pin",
-        "provdrmiddlename":"middleName",}
+        "provdrmiddlename":"middleName",
+        "provdrdesignationcode":"designationCode"
+    }
         
     sql = """
          SELECT distinct pin as provdrkey,
@@ -1087,7 +1088,8 @@ def map_to_HLlocations(provider):
        "provdrlocnstreet5":"street5",
        "provdrlocnzip":"zipCode",
        "provdrlocnprimaryphone":"primaryPhone",
-       "provdrlocnacceptingNewPatients":"acceptingNewPatients"
+       "provdrlocnacceptingnewpatients":"acceptingNewPatients",
+       "provdrdesignationcode":"designationCode"
        }
        
     hl_locs = []

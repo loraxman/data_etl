@@ -748,7 +748,8 @@ def service_single_provider_staging(svcque,threadno):
         end  ||  ',' 
         '"base_net_id_no":' || '"' || to_json(cast (base_net_id_no as integer) ) || '" }'),
                 md5(
-        '"base_net_id_no":' || '"' || to_json(cast (base_net_id_no as integer) ) || '" }')
+        '"base_net_id_no":' || '"' || to_json(cast (base_net_id_no as integer) ) || '" }'),
+        cast(service_location_no as integer)
         from staging.srvgrpprovass where pin = '%s';        """
         cur2.close()
         cur2=conn.cursor()
@@ -759,9 +760,24 @@ def service_single_provider_staging(svcque,threadno):
         provider['networks'] = []
         provider['netwkhashes'] = []
         provider['netwkcathashes'] = []
+        provider_networkloc = {}
         for rowloc in rowsnet:
             # providernetworks={}
-            providernetworks=json.loads(rowloc[0])
+            netwks = json.loads(rowloc[0])
+            providernetworks=netwks
+
+            #initialize network serviceloc hash
+            if not provider_networkloc.has_key(rowloc[3]):
+                 provider_networkloc[rowloc[3]] = []
+                 provider_networkloc[rowloc[3]].append([])  #the network array
+                 provider_networkloc[rowloc[3]].append([])  #the networkhash array
+                 provider_networkloc[rowloc[3]].append([])  #the networkcathash array
+                 
+            provider_networkloc[rowloc[3]][0].append(netwks)
+            provider_networkloc[rowloc[3]][1].append((rowloc[1]))
+            provider_networkloc[rowloc[3]][2].append((rowloc[2]))
+       
+            
             provider['networks'].append(providernetworks)
             provider['netwkhashes'].append(rowloc[1])
             provider['netwkcathashes'].append(rowloc[2])
@@ -794,7 +810,7 @@ def service_single_provider_staging(svcque,threadno):
         
         #her we could no map each new hl_loc to a single row in our geo search table
         
-        add_provdr_loc_table(conn, hl_locs,provider)
+        add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc)
         
    #     print len(json.dumps(provider))
         #jsoncompressed = zlib.compress(json.dumps(provider))
@@ -830,28 +846,28 @@ def service_single_provider_staging(svcque,threadno):
 
 
 
-def add_provdr_loc_table(conn, hl_locs,provider):
+def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc):
     sqlupd = """
      update psearch_vcprovdrlocn3
      set provdrkey = %s ,
+     service_location_number = '%s',
      provdrlocnlongitude = %s, 
      provdrlocnlatitude  = %s, 
      geom = ST_GeomFromText('POINT(' ||  cast(cast('%s' as float) *-1 as varchar) || ' ' || %s || ')',4326),
-     specialties = '%s',
-     bundles = '%s'
-     where pin = '%s'
+     specialities = '%s',
+     bundles = '%s',
+     location = '%s',
+     networks = '%s',
+     netwkhashes = '%s',
+     netwkcathashes = '%s'
+     where provdrkey = '%s'
      and service_location_number = '%s'
     """
-        
-        # curloc=conn.cursor()
-        #curloc.execute(sql % (provider['provdrkey'], providerlocn['provdrlocnlongitude'], providerlocn['provdrlocnlatitude'],\
-                #      providerlocn['provdrlocnlongitude'], providerlocn['provdrlocnlatitude'], json.dumps(provider['specialities']),\
-                # json.dumps(provider['bundles']), provider['provdrkey'],  providerlocn['provdrlocnid']))
     sqlins = """
      insert into psearch_vcprovdrlocn3 (provdrkey,service_location_number, provdrlocnlongitude,provdrlocnlatitude,
      geom, specialities, bundles,location) values 
      ('%s','%s', %s,%s, ST_GeomFromText('POINT(' ||  cast(cast('%s' as float) *-1 as varchar) || ' ' || %s || ')',4326),
-     '%s','%s','%s')
+     '%s','%s','%s','%s','%s','%s')
      
   
     """
@@ -860,12 +876,41 @@ def add_provdr_loc_table(conn, hl_locs,provider):
     idx = 0
     print len(hl_locs)
     for loc in hl_locs:
-        curloc.execute(sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
-            provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], json.dumps(provider['specialities']),\
-            json.dumps(provider['bundles']),  \
-            json.dumps(sorted(loc, key=loc.get)).replace("'","''")))
+        netkey = provider['locations'][idx]['provdrlocnid']
+        #might not have a service grouping for every location -- handle that and default empty arrays
+        if provider_networkloc.has_key(int(netkey)):
+            netwksjson = json.dumps(provider_networkloc[int(provider['locations'][idx]['provdrlocnid'])][0])
+            netwkshashjson =  json.dumps(provider_networkloc[int(provider['locations'][idx]['provdrlocnid'])][1])
+            netwkscathashjson =  json.dumps(provider_networkloc[int(provider['locations'][idx]['provdrlocnid'])][2])
+            print netkey, provider_networkloc.keys(), provider['provdrid']
+
+        else:
+            netwksjson = "[]"
+            netwkshashjson = "[]"
+            netwkscathashjson = "[]"
+        
+        curloc.execute(sqlupd % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
+                provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], json.dumps(provider['specialities']),\
+                json.dumps(provider['bundles']),  \
+                json.dumps(loc).replace("'","''"),\
+                netwksjson,\
+                netwkshashjson,\
+                netwkscathashjson ,\
+                provider['provdrkey'],provider['locations'][idx]['provdrlocnid']))
+        if curloc.rowcount == 0:        
+            curloc.execute(sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
+                provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], json.dumps(provider['specialities']),\
+                json.dumps(provider['bundles']),  \
+                json.dumps(loc).replace("'","''"),\
+                netwksjson,\
+                netwkshashjson,\
+                netwkscathashjson \
+                ))
         idx += 1
        # print idx
+        curloc.execute("commit")
+ 
+ 
         
 def map_to_HLformat(provider):
     pass
@@ -919,7 +964,6 @@ def map_to_HLprovider(hl_locs,provider):
       
         hl_newlocs.append(loc)
      
-   # print hl_newlocs
     return hl_newlocs
 
 
@@ -985,6 +1029,7 @@ def map_to_HLlocations(provider):
         hl_loc['par'] = 'Y'
         #distance is undefined yet put placemarker
         hl_loc["distance"] =  "0.0"
+        hl_loc['pin'] = provider['provdrid']
         hl_locs.append(hl_loc)
         
     return hl_locs

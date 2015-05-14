@@ -46,7 +46,7 @@ def make_json_providers(etl_type='full'):
     conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
     cur=conn3.cursor()
     if etl_type == 'full':
-        sql = " select distinct pin from provsrvloc where pin = '0004000001' limit 100 "
+        sql = " select distinct pin from provsrvloc  limit 100 "
     else:
         sql = " select distinct pin, change_type from provlddelta"
   #  cur.execute("Select provdrkey from  h_provdr d  ")
@@ -714,11 +714,12 @@ def service_single_provider_staging(svcque,threadno):
         #print("--- %s provddrlocn seconds ---" % (time.time() - start_time)) 
         
         sql = """
-        select b.name as facilityName, 'Y' as isfacilityflag,
+        select b.name as facilityName, 
         admit_privileges as admitPrvileges ,
         affil_status_code as affilStatusCode,
         cast(a.service_location_number as int),
-        '' as affilFlags
+        '' as affilFlags,
+        a.hospital_pin as hospitalPin
         from hospaff a, provsrvloc b
         where a.pin = '%s'
         and a.hospital_pin = b.pin
@@ -743,10 +744,10 @@ def service_single_provider_staging(svcque,threadno):
                     
             provider['hospitals'].append(providerhospitals)
             #initialize network serviceloc hash
-            if not provider_hosp.has_key(rowloc[4]):
-                provider_hosp[rowloc[4]] = []
+            if not provider_hosp.has_key(rowloc[3]):
+                provider_hosp[rowloc[3]] = []
                 
-            provider_hosp[rowloc[4]].append(providerhospitals)
+            provider_hosp[rowloc[3]].append(providerhospitals)
 
 #        print("--- %s Hosp seconds ---" % (time.time() - start_time))
 
@@ -813,7 +814,7 @@ def service_single_provider_staging(svcque,threadno):
         #print("--- %s Network seconds ---" % (time.time() - start_time))
         #provder quality program
         sql = """
-        select distinct flag_code as qualityprogramcode, flag_description as qualityprogramdescr
+        select distinct flag_code as flagCode, flag_description as qualityprogramdescr,cast (service_location_no as int)
         from provsrvlocflg where pin = '%s'
         """
         cur2.close()
@@ -822,15 +823,19 @@ def service_single_provider_staging(svcque,threadno):
         cur2.execute(sql % (provider['provdrkey']))
         rowsnet = cur2.fetchall()
         provider['programs'] = []
+        provider_flags = {}
         for rowloc in rowsnet:
             providerprograms={}
-            cols = gettabcols(cur2.description,"quality")            
+            cols = gettabcols(cur2.description,"a")            
             for k,v in cols.items():
                 try:
                     providerprograms[v] = rowloc[k].strip()
                 except:
                     providerprograms[v] = rowloc[k]
-                    
+                if not provider_flags.has_key(rowloc[2]):
+                     provider_flags[rowloc[2]] = []
+                provider_flags[rowloc[2]].append(rowloc[0].strip())
+                   
             provider['programs'].append(providerprograms)
 
 
@@ -839,7 +844,7 @@ def service_single_provider_staging(svcque,threadno):
         
         #her we could no map each new hl_loc to a single row in our geo search table
         
-        add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_specl,provider_langs,provider_hosp)
+        add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_specl,provider_langs,provider_hosp,provider_flags)
         
    #     print len(json.dumps(provider))
         #jsoncompressed = zlib.compress(json.dumps(provider))
@@ -852,10 +857,10 @@ def service_single_provider_staging(svcque,threadno):
                 curjson.execute("begin") 
                 start_trx = False
             sql = "update provider_json3 set provdrjson = '%s' where provdrkey = %s" % (provdrjson,provider['provdrkey'])
-            curjson.execute (sql)
+         #   curjson.execute (sql)
             if curjson.rowcount == 0:
                 sql = "insert into provider_json3 (provdrid, provdrkey,provdrjson) values ('%s','%s','%s') " % (provider['provdrid'],provider['provdrkey'],provdrjson)
-                curjson.execute (sql)
+        #        curjson.execute (sql)
            #curjson.execute("commit")
 #            sql = "insert into provider_json_compress (provdrid, provdrkey,provider_json_ztext) values ('%s','%s',%s) " % (provider['provdrid'],provider['provdrkey'],psycopg2cffi.Binary(jsoncompressed))
   #          curjson.execute (sql)
@@ -875,7 +880,7 @@ def service_single_provider_staging(svcque,threadno):
 
 
 
-def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_specl, provider_langs,provider_hosp):
+def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_specl, provider_langs,provider_hosp,provider_flags):
     sqlupd = """
      update psearch_vcprovdrlocn3
      set provdrkey = %s ,
@@ -883,9 +888,7 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
      provdrlocnlongitude = %s, 
      provdrlocnlatitude  = %s, 
      geom = ST_GeomFromText('POINT(' ||  cast(cast('%s' as float) *-1 as varchar) || ' ' || %s || ')',4326),
-     specialities = '%s',
      bundles = '%s',
-     location = '%s',
      networks = '%s',
      netwkhashes = '%s',
      netwkcathashes = '%s',
@@ -896,16 +899,15 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
     """
     sqlins = """
      insert into psearch_vcprovdrlocn3 (provdrkey,service_location_number, provdrlocnlongitude,provdrlocnlatitude,
-     geom, specialities, bundles,location,networks,netwkhashes,netwkcathashes,specialtyhash,provdrjson) values 
+     geom,  bundles,networks,netwkhashes,netwkcathashes,specialtyhash,provdrjson) values 
      ('%s','%s', %s,%s, ST_GeomFromText('POINT(' ||  cast(cast('%s' as float) *-1 as varchar) || ' ' || %s || ')',4326),
-     '%s','%s','%s','%s','%s','%s','%s','%s')
+     '%s','%s','%s','%s','%s','%s')
      
   
     """
     curloc=conn.cursor()
 
     idx = 0
-    print len(hl_locs)
     
     for loc in hl_locs:
         provdrjson = loc
@@ -939,8 +941,7 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
             specljson = ""
             speclhashjson = "[]"
             
-        if provider_langs.has_key(int(netkey)):    
-          
+        if provider_langs.has_key(int(netkey)):            
             langstr = ''
             for l in provider_langs[int(netkey)]:
                 langstr +=  l.strip() + ','
@@ -949,19 +950,28 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
             langstr = ''
         provdrjson['languageDescription'] = langstr
       
+      
         if provider_hosp.has_key(int(netkey)):
             provdrjson['hospitalAffiliations'] = provider_hosp[int(netkey)]
+            
+        if provider_flags.has_key(int(netkey)):
+            pflags = ",".join(set(provider_flags[int(netkey)]))
+            provdrjson['flagCode'] = pflags
         
         provdrjson['categoryCode'] = catsstr
         provdrjson['network'] = netwkstr
         provdrjson['tier'] = tiersstr
+        provdrjson['serviceLocationNumber'] = netkey
+        provdrjson['ioe'] = False
+        provdrjson['ioq'] = False
+         
+       
         
         
         curloc.execute(sqlupd % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
                 provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], \
-                specljson,\
+                
                 json.dumps(provider['bundles']),  \
-                json.dumps(loc).replace("'","''"),\
                 netwksjson,\
                 netwkshashjson,\
                 netwkscathashjson ,\
@@ -971,9 +981,8 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
         if curloc.rowcount == 0:        
             curloc.execute(sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
                 provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], 
-                specljson,\
+              
                 json.dumps(provider['bundles']),  \
-                json.dumps(loc).replace("'","''"),\
                 netwksjson,\
                 netwkshashjson,\
                 netwkscathashjson, \
@@ -982,7 +991,8 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
                 ))
         idx += 1
        # print idx
-        curloc.execute("commit")
+        if idx % 40 == 0:
+            curloc.execute("commit")
  
  
         
@@ -1002,7 +1012,10 @@ def map_to_HLprovider(hl_locs,provider):
         "provdrgender":"gender",
         "provdrpin":"pin",
         "provdrmiddlename":"middleName",
-        "provdrdesignationcode":"designationCode"
+        "provdrdesignationcode":"designationCode",
+        "provdrname" : "name",
+        "provdrisfacilityflag":"provdrisfacilityflag"
+        
     }
         
     sql = """
@@ -1036,8 +1049,14 @@ def map_to_HLprovider(hl_locs,provider):
             if translate.has_key(k):
                 mapper = translate[k]
                 loc[mapper] = v
-                
-      
+         
+        if loc['provdrisfacilityflag'] == 'Y':          
+            loc['facilityName']  = loc['name'] 
+            del loc['gender']
+            del loc['firstName']
+            del loc['lastName']
+            del loc['middleName']
+        del loc['name']
         hl_newlocs.append(loc)
      
     return hl_newlocs

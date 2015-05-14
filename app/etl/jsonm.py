@@ -42,7 +42,7 @@ def start_consumers(num_consume):
 def make_json_providers(etl_type='full'):
     
     #start threads
-    start_consumers(2)
+    start_consumers(1)
     conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
     cur=conn3.cursor()
     if etl_type == 'full':
@@ -544,10 +544,16 @@ def service_single_provider_staging(svcque,threadno):
         sql = """
         
 
-        select distinct  
-        '{' || '"specialty":' || to_json(trim(practice_description) ) ||','
-                 '"specialtyid":' || to_json(trim(practice_code)) || ',"isPrimary":' || to_json(trim(prim_spec_ind)) || '}'
-                 from provsrvlocspec
+       select 
+        '{' || '"name":' || to_json(trim(practice_description) ) ||','
+                 '"specialtyId":' || to_json(trim(practice_code)) || ',"isPrimary":' || to_json(trim(prim_spec_ind)) || ',"typeCode":' 
+                 || to_json(trim(practice_type)) 
+                 || ',"serviceLocationNumber":' || to_json(service_location_no) ||
+                 '}'
+                 ,
+                 md5(trim(practice_code))
+                , cast(service_location_no as integer)
+                from provsrvlocspec 
                  where pin = '%s'
 
          """
@@ -558,8 +564,17 @@ def service_single_provider_staging(svcque,threadno):
         cur3.execute(sql % (provider['provdrid']))
         #print("--- %s Specialty seconds ---" % (time.time() - start_time)) 
         rowspract = cur3.fetchall()
+        provider_specl= {}
         for rowpract in rowspract:
             
+            if not provider_specl.has_key(rowpract[2]):
+                provider_specl[rowpract[2]] = []
+                provider_specl[rowpract[2]].append([])  #the json ret array
+                provider_specl[rowpract[2]].append([])  #the khash array
+                
+                provider_specl[rowpract[2]][0].append(json.loads(rowpract[0]))
+                provider_specl[rowpract[2]][1].append((rowpract[1]))
+
             practspecl = json.loads(rowpract[0])
             provider['specialities'].append(practspecl)   
             
@@ -810,7 +825,7 @@ def service_single_provider_staging(svcque,threadno):
         
         #her we could no map each new hl_loc to a single row in our geo search table
         
-        add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc)
+        add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_specl)
         
    #     print len(json.dumps(provider))
         #jsoncompressed = zlib.compress(json.dumps(provider))
@@ -846,7 +861,7 @@ def service_single_provider_staging(svcque,threadno):
 
 
 
-def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc):
+def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_specl):
     sqlupd = """
      update psearch_vcprovdrlocn3
      set provdrkey = %s ,
@@ -875,6 +890,8 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc):
 
     idx = 0
     print len(hl_locs)
+    print provider_specl
+    
     for loc in hl_locs:
         netkey = provider['locations'][idx]['provdrlocnid']
         #might not have a service grouping for every location -- handle that and default empty arrays
@@ -888,9 +905,28 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc):
             netwksjson = "[]"
             netwkshashjson = "[]"
             netwkscathashjson = "[]"
+            
+        if provider_specl.has_key(int(netkey)):
+            specljson = json.dumps(provider_specl[int(provider['locations'][idx]['provdrlocnid'])][0])
+            speclhashjson =  json.dumps(provider_specl[int(provider['locations'][idx]['provdrlocnid'])][1])
+            
+        else:
+            specljson = ""
+            speclhashjson = "[]"
+             
+        print sqlupd % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
+                provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], \
+                specljson,\
+                json.dumps(provider['bundles']),  \
+                json.dumps(loc).replace("'","''"),\
+                netwksjson,\
+                netwkshashjson,\
+                netwkscathashjson ,\
+                provider['provdrkey'],provider['locations'][idx]['provdrlocnid'])
         
         curloc.execute(sqlupd % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
-                provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], json.dumps(provider['specialities']),\
+                provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], \
+                specljson,\
                 json.dumps(provider['bundles']),  \
                 json.dumps(loc).replace("'","''"),\
                 netwksjson,\
@@ -899,7 +935,8 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc):
                 provider['provdrkey'],provider['locations'][idx]['provdrlocnid']))
         if curloc.rowcount == 0:        
             curloc.execute(sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
-                provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], json.dumps(provider['specialities']),\
+                provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], 
+                json.dumps(specljson),\
                 json.dumps(provider['bundles']),  \
                 json.dumps(loc).replace("'","''"),\
                 netwksjson,\

@@ -42,11 +42,11 @@ def start_consumers(num_consume):
 def make_json_providers(etl_type='full'):
     
     #start threads
-    start_consumers(1)
-    conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    start_consumers(10)
+    conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     cur=conn3.cursor()
     if etl_type == 'full':
-        sql = " select distinct pin from provsrvloc  limit 100 "
+        sql = " select distinct pin from provsrvloc  "
     else:
         sql = " select distinct pin, change_type from provlddelta"
   #  cur.execute("Select provdrkey from  h_provdr d  ")
@@ -84,7 +84,7 @@ def make_json_providers(etl_type='full'):
 def service_single_provider(svcque,threadno): 
     if not sqlQ:
         fjson = open(dpath + "/jsonout"+str(threadno)+".dat" , "w")
-    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost0' password='1yamadx7'")
     cur5=conn.cursor()
     cnt = 0
     start_trx = True
@@ -457,7 +457,7 @@ def service_single_provider(svcque,threadno):
 def service_single_provider_staging(svcque,threadno): 
     if not sqlQ:
         fjson = open(dpath + "/jsonout"+str(threadno)+".dat" , "w")
-    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     cur5=conn.cursor()
     cnt = 0
     start_trx = True
@@ -501,9 +501,8 @@ def service_single_provider_staging(svcque,threadno):
             major_classification as provdrmajorclassification,
             med_dent_ind as provdrmeddentalind,
             designation_code as provdrdesignationcode
-            from provsrvloc a, provider_type c
+            from provsrvloc a left outer join  provider_type c on trim(provider_type) = trim(c."PROVIDER_TYPE_CD")
             where pin = '%s'
-            and trim(a.provider_type) = trim(c."PROVIDER_TYPE_CD");
         """
         
         cur5.execute(sql % (provdrkey))
@@ -518,7 +517,11 @@ def service_single_provider_staging(svcque,threadno):
             try:
                 provider[v] = row[k].strip()
             except:
-                provider[v] = row[k]
+                try:
+                    provider[v] = row[k]
+                except:
+                    print "skpped error...row was probably null"
+
               #provider languages
         sql = """
         select distinct language_description as langname, cast (service_location_number as int) from provlang 
@@ -991,7 +994,8 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
                 ))
         idx += 1
        # print idx
-        if idx % 40 == 0:
+        if idx % 1000  == 0:
+            print "Locs:%d" % idx
             curloc.execute("commit")
  
  

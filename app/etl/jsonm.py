@@ -874,15 +874,17 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
      location = '%s',
      networks = '%s',
      netwkhashes = '%s',
-     netwkcathashes = '%s'
+     netwkcathashes = '%s',
+     specialtyhash = '%s',
+     provdrjson = '%s'
      where provdrkey = '%s'
      and service_location_number = '%s'
     """
     sqlins = """
      insert into psearch_vcprovdrlocn3 (provdrkey,service_location_number, provdrlocnlongitude,provdrlocnlatitude,
-     geom, specialities, bundles,location) values 
+     geom, specialities, bundles,location,networks,netwkhashes,netwkcathashes,specialtyhash,provdrjson) values 
      ('%s','%s', %s,%s, ST_GeomFromText('POINT(' ||  cast(cast('%s' as float) *-1 as varchar) || ' ' || %s || ')',4326),
-     '%s','%s','%s','%s','%s','%s')
+     '%s','%s','%s','%s','%s','%s','%s','%s')
      
   
     """
@@ -890,9 +892,10 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
 
     idx = 0
     print len(hl_locs)
-    print provider_specl
+    provdrjson = {}
     
     for loc in hl_locs:
+        provdrjson = loc
         netkey = provider['locations'][idx]['provdrlocnid']
         #might not have a service grouping for every location -- handle that and default empty arrays
         if provider_networkloc.has_key(int(netkey)):
@@ -909,20 +912,23 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
         if provider_specl.has_key(int(netkey)):
             specljson = json.dumps(provider_specl[int(provider['locations'][idx]['provdrlocnid'])][0])
             speclhashjson =  json.dumps(provider_specl[int(provider['locations'][idx]['provdrlocnid'])][1])
-            
+            provdrjson['specialties'] = provider_specl[int(provider['locations'][idx]['provdrlocnid'])][0]
         else:
             specljson = ""
             speclhashjson = "[]"
              
-        print sqlupd % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
-                provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], \
-                specljson,\
+        print provdrjson
+        print sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
+                provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], 
+                json.dumps(specljson),\
                 json.dumps(provider['bundles']),  \
                 json.dumps(loc).replace("'","''"),\
                 netwksjson,\
                 netwkshashjson,\
-                netwkscathashjson ,\
-                provider['provdrkey'],provider['locations'][idx]['provdrlocnid'])
+                netwkscathashjson, \
+                speclhashjson, \
+                json.dumps(provdrjson)
+                )
         
         curloc.execute(sqlupd % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
                 provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], \
@@ -932,16 +938,20 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
                 netwksjson,\
                 netwkshashjson,\
                 netwkscathashjson ,\
+                speclhashjson,\
+                json.dumps(provdrjson),\
                 provider['provdrkey'],provider['locations'][idx]['provdrlocnid']))
         if curloc.rowcount == 0:        
             curloc.execute(sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
                 provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], 
-                json.dumps(specljson),\
+                specljson,\
                 json.dumps(provider['bundles']),  \
                 json.dumps(loc).replace("'","''"),\
                 netwksjson,\
                 netwkshashjson,\
-                netwkscathashjson \
+                netwkscathashjson, \
+                speclhashjson, \
+                json.dumps(provdrjson)
                 ))
         idx += 1
        # print idx

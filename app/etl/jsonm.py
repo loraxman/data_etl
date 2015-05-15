@@ -3,10 +3,11 @@ import json
 import threading
 import multiprocessing
 from multiprocessing import Process, Queue
-import psycopg2cffi
+import psycopg2cffi as pypg
+
 #from nltk import bigrams
 #import pandas as pd
-#import psycopg2
+#import psycopg2 as pypg
 
 from time import sleep
 import zlib
@@ -43,8 +44,8 @@ def make_json_providers(etl_type='full'):
     
     #start threads
     start_consumers(1)
-   # conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
-    conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+   # conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
+    conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
     cur=conn3.cursor()
     if etl_type == 'full':
         sql = " select distinct pin from provsrvloc where pin = '0005938467' "
@@ -85,7 +86,7 @@ def make_json_providers(etl_type='full'):
 def service_single_provider(svcque,threadno): 
     if not sqlQ:
         fjson = open(dpath + "/jsonout"+str(threadno)+".dat" , "w")
-    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost0' password='1yamadx7'")
+    conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost0' password='1yamadx7'")
     cur5=conn.cursor()
     cnt = 0
     start_trx = True
@@ -439,7 +440,7 @@ def service_single_provider(svcque,threadno):
                 sql = "insert into provider_json (provdrid, provdrkey,provdrjson) values ('%s','%s','%s') " % (provider['provdrid'],provider['provdrkey'],provdrjson)
                 curjson.execute (sql)
             #curjson.execute("commit")
-#            sql = "insert into provider_json_compress (provdrid, provdrkey,provider_json_ztext) values ('%s','%s',%s) " % (provider['provdrid'],provider['provdrkey'],psycopg2cffi.Binary(jsoncompressed))
+#            sql = "insert into provider_json_compress (provdrid, provdrkey,provider_json_ztext) values ('%s','%s',%s) " % (provider['provdrid'],provider['provdrkey'],pypg.Binary(jsoncompressed))
   #          curjson.execute (sql)
             #svcque.task_done()
             cnt += 1
@@ -458,8 +459,8 @@ def service_single_provider(svcque,threadno):
 def service_single_provider_staging(svcque,threadno): 
     if not sqlQ:
         fjson = open(dpath + "/jsonout"+str(threadno)+".dat" , "w")
-   # conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
-    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+   # conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
+    conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
 
     cur5=conn.cursor()
     cnt = 0
@@ -901,7 +902,7 @@ def service_single_provider_staging(svcque,threadno):
                 sql = "insert into provider_json3 (provdrid, provdrkey,provdrjson) values ('%s','%s','%s') " % (provider['provdrid'],provider['provdrkey'],provdrjson)
         #        curjson.execute (sql)
            #curjson.execute("commit")
-#            sql = "insert into provider_json_compress (provdrid, provdrkey,provider_json_ztext) values ('%s','%s',%s) " % (provider['provdrid'],provider['provdrkey'],psycopg2cffi.Binary(jsoncompressed))
+#            sql = "insert into provider_json_compress (provdrid, provdrkey,provider_json_ztext) values ('%s','%s',%s) " % (provider['provdrid'],provider['provdrkey'],pypg.Binary(jsoncompressed))
   #          curjson.execute (sql)
             #svcque.task_done()
             cnt += 1
@@ -909,6 +910,12 @@ def service_single_provider_staging(svcque,threadno):
                 curjson.execute("commit")
                 start_trx = True
                 print "thread %d  at: %d " % (threadno,cnt)
+                #lets try to drop and redo connect every 1000 times
+                if cnt%1000 == 0:
+                   # conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
+                   conn.close()
+                   conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+
         else:
             fjson.write("%s|%s|%s\n" % (provider['provdrid'],provider['provdrkey'],provdrjson))
             cnt += 1
@@ -1017,17 +1024,29 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
                 speclhashjson,\
                 json.dumps(provdrjson).replace("'","''"),\
                 provider['provdrkey'],provider['locations'][idx]['provdrlocnid']))
-        if curloc.rowcount == 0:        
-            curloc.execute(sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
-                provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], 
-              
-                json.dumps(provider['bundles']),  \
-                netwksjson,\
-                netwkshashjson,\
-                netwkscathashjson, \
-                speclhashjson, \
-                json.dumps(provdrjson).replace("'","''")
-                ))
+        if curloc.rowcount == 0:   
+            try :     
+                curloc.execute(sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
+                    provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], 
+                  
+                    json.dumps(provider['bundles']),  \
+                    netwksjson,\
+                    netwkshashjson,\
+                    netwkscathashjson, \
+                    speclhashjson, \
+                    json.dumps(provdrjson).replace("'","''")
+                    ))
+            except:
+                print sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
+                        provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], 
+                        
+                        json.dumps(provider['bundles']),  \
+                                netwksjson,\
+                                netwkshashjson,\
+                                netwkscathashjson, \
+                                speclhashjson, \
+                                json.dumps(provdrjson).replace("'","''")
+                                )
         idx += 1
        # print idx
         if idx % 1000  == 0:

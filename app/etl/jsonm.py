@@ -42,11 +42,12 @@ def start_consumers(num_consume):
 def make_json_providers(etl_type='full'):
     
     #start threads
-    start_consumers(10)
-    conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
+    start_consumers(1)
+   # conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
+    conn3 = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
     cur=conn3.cursor()
     if etl_type == 'full':
-        sql = " select distinct pin from provsrvloc  "
+        sql = " select distinct pin from provsrvloc where pin = '0005938467' "
     else:
         sql = " select distinct pin, change_type from provlddelta"
   #  cur.execute("Select provdrkey from  h_provdr d  ")
@@ -457,7 +458,9 @@ def service_single_provider(svcque,threadno):
 def service_single_provider_staging(svcque,threadno): 
     if not sqlQ:
         fjson = open(dpath + "/jsonout"+str(threadno)+".dat" , "w")
-    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
+   # conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
+    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+
     cur5=conn.cursor()
     cnt = 0
     start_trx = True
@@ -501,15 +504,46 @@ def service_single_provider_staging(svcque,threadno):
             major_classification as provdrmajorclassification,
             med_dent_ind as provdrmeddentalind,
             designation_code as provdrdesignationcode
-            from provsrvloc a left outer join  provider_type c on trim(provider_type) = trim(c."PROVIDER_TYPE_CD")
+            from provsrvloc a , provider_type c where trim(provider_type) = trim(c."PROVIDER_TYPE_CD")
+            and pin = '%s' 
+        """
+        #above query produced memory error at some point
+        #instead of outer join. If we get no rows just fill in 'N' ot facility
+        sqlalt = """
+         SELECT distinct pin as provdrkey,
+         pin as provdrid,
+         name as provdrname,
+         null as provdrtin,
+         salutation as provdrsalutation,
+         last_name as provdrlastname,
+         first_name as provdrfirstname,
+         middle_name as provdrmiddlename,
+         gender_description as provdrgender,
+         birth_date as provdrbirthdate,
+         primary_degree_desc as provdrprimarydegreedescr,
+         secondary_degree_desc as provdrsecondarydegreedescr,
+         provider_type as provdrtype,
+         'N' as provdrisfacilityflag,
+            major_classification as provdrmajorclassification,
+            med_dent_ind as provdrmeddentalind,
+            designation_code as provdrdesignationcode
+         
+            from provsrvloc a 
             where pin = '%s'
         """
+                
         try : 
             cur5.execute(sql % (provdrkey))
         except:
             print sql
+        try:
+            row = cur5.fetchone()
+        except:        
+            print "none to fetch"
+        if row == None:
+            cur5.execute(sqlalt  % (provdrkey) )
+            row = cur5.fetchone()
         
-        row = cur5.fetchone()
      #   print cur5.description
         cols = gettabcols(cur5.description,"provdr","provdrlocn")
         #go thru qualified cols and grab from row
@@ -560,7 +594,7 @@ def service_single_provider_staging(svcque,threadno):
                  || ',"serviceLocationNumber":' || to_json(service_location_no) ||
                  '}'
                  ,
-                 md5(trim(practice_code))
+                 trim(practice_code)
                 , cast(service_location_no as integer)
                 from provsrvlocspec 
                  where pin = '%s'
@@ -687,7 +721,7 @@ def service_single_provider_staging(svcque,threadno):
                     providerlocn[v] = rowloc[k]
                     
                 sqlupd = """
-                 update psearch_vcprovdrlocn3
+                 update provider_loc_search
                  set provdrkey = %s ,
                  provdrlocnlongitude = %s, 
                  provdrlocnlatitude  = %s, 
@@ -703,7 +737,7 @@ def service_single_provider_staging(svcque,threadno):
                 #      providerlocn['provdrlocnlongitude'], providerlocn['provdrlocnlatitude'], json.dumps(provider['specialities']),\
                 # json.dumps(provider['bundles']), provider['provdrkey'],  providerlocn['provdrlocnid']))
                 sqlins = """
-                 insert into psearch_vcprovdrlocn3 (provdrkey,,service_location_number, provdrlocnlongitude,provdrlocnlatitude,
+                 insert into provider_loc_search (provdrkey,,service_location_number, provdrlocnlongitude,provdrlocnlatitude,
                  geom, specialties, bundles) values 
                  ('%s','%s', %s,%s, ST_GeomFromText('POINT(' ||  cast(cast('%s' as float) *-1 as varchar) || ' ' || %s || ')',4326),
                  '%s,'%s')"
@@ -887,7 +921,7 @@ def service_single_provider_staging(svcque,threadno):
 
 def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_specl, provider_langs,provider_hosp,provider_flags):
     sqlupd = """
-     update psearch_vcprovdrlocn3
+     update provider_loc_search
      set provdrkey = %s ,
      service_location_number = '%s',
      provdrlocnlongitude = %s, 
@@ -897,14 +931,14 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
      networks = '%s',
      netwkhashes = '%s',
      netwkcathashes = '%s',
-     specialtyhash = '%s',
+     specialties = '%s',
      provdrjson = '%s'
      where provdrkey = '%s'
      and service_location_number = '%s'
     """
     sqlins = """
-     insert into psearch_vcprovdrlocn3 (provdrkey,service_location_number, provdrlocnlongitude,provdrlocnlatitude,
-     geom,  bundles,networks,netwkhashes,netwkcathashes,specialtyhash,provdrjson) values 
+     insert into provider_loc_search (provdrkey,service_location_number, provdrlocnlongitude,provdrlocnlatitude,
+     geom,  bundles,networks,netwkhashes,netwkcathashes,specialties,provdrjson) values 
      ('%s','%s', %s,%s, ST_GeomFromText('POINT(' ||  cast(cast('%s' as float) *-1 as varchar) || ' ' || %s || ')',4326),
      '%s','%s','%s','%s','%s','%s')
      

@@ -43,12 +43,12 @@ def start_consumers(num_consume):
 def make_json_providers(etl_type='full'):
     
     #start threads
-    start_consumers(1)
-   # conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
-    conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    start_consumers(15)
+    conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
+   # conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
     cur=conn3.cursor()
     if etl_type == 'full':
-        sql = " select distinct pin from provsrvloc  where pin = '0005938467' "
+        sql = " select distinct pin from provsrvloc limit 100 "
     else:
         sql = " select distinct pin, change_type from provlddelta"
   #  cur.execute("Select provdrkey from  h_provdr d  ")
@@ -459,8 +459,8 @@ def service_single_provider(svcque,threadno):
 def service_single_provider_staging(svcque,threadno): 
     if not sqlQ:
         fjson = open(dpath + "/jsonout"+str(threadno)+".dat" , "w")
-   # conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
-    conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
+   # conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
 
        
         
@@ -935,9 +935,9 @@ def service_single_provider_staging(svcque,threadno):
                 print "thread %d  at: %d " % (threadno,cnt)
                 #lets try to drop and redo connect every 1000 times
                 if True:
-                   # conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
                    conn.close()
-                   conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+                   #conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+                   conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
                    curjson = conn.cursor()
         else:
             fjson.write("%s|%s|%s\n" % (provider['provdrid'],provider['provdrkey'],provdrjson))
@@ -1090,6 +1090,9 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
  
 def generate_procedure_json(provider_bundle,lockey):
     procedures = []
+    if not provider_bundle.has_key(lockey):
+        return procedures
+
     for bundles in provider_bundle[lockey]:
         for k,blist in bundles.iteritems():
             for b in blist:

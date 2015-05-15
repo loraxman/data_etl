@@ -692,7 +692,6 @@ def service_single_provider_staging(svcque,threadno):
 
         provider['bundles'] =  bundles  
         #print("--- %s Bundles seconds ---" % (time.time() - start_time)) 
-        print provider_bundle
             
         #provider locns            
         cur2=conn.cursor()
@@ -1037,12 +1036,15 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
         else:
             bundlstr = "[]"   
             
+        procedures = generate_procedure_json(provider_bundle, int(netkey))
+            
         provdrjson['categoryCode'] = catsstr
         provdrjson['network'] = netwkstr
         provdrjson['tier'] = tiersstr
         provdrjson['serviceLocationNumber'] = netkey
         provdrjson['ioe'] = False
         provdrjson['ioq'] = False
+        provdrjson['procedureCode'] = procedures
          
        
         
@@ -1085,6 +1087,22 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
             print "Locs:%d" % idx
             curloc.execute("commit")
  
+ 
+def generate_procedure_json(provider_bundle,lockey):
+    procedures = []
+    for bundles in provider_bundle[lockey]:
+        for k,blist in bundles.iteritems():
+            for b in blist:
+                procedure = {}
+                procedure['code'] = b['bundleid']
+                procedure['description'] = b['bundlename']
+                procedure['minAge'] = int(b['uk1'][0:4])
+                procedure['maxAge'] = int(b['uk1'][4:8])
+                procedure['gender'] = b['uk1'][9:10]
+                procedure['constitude_code'] = b['uk1'][10:11]
+                procedures.append(procedure)
+    return procedures
+        
         
 def map_to_HLformat(provider):
     pass

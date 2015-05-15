@@ -48,7 +48,7 @@ def make_json_providers(etl_type='full'):
    # conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
     cur=conn3.cursor()
     if etl_type == 'full':
-        sql = " select distinct pin from provsrvloc limit 100 "
+        sql = " select distinct pin from provsrvloc  "  #where pin = '0005938467'
     else:
         sql = " select distinct pin, change_type from provlddelta"
   #  cur.execute("Select provdrkey from  h_provdr d  ")

@@ -48,7 +48,7 @@ def make_json_providers(etl_type='full'):
     conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
     cur=conn3.cursor()
     if etl_type == 'full':
-        sql = " select distinct pin from provsrvloc where pin = '0005938467' "
+        sql = " select distinct pin from provsrvloc  where pin = '0005938467' "
     else:
         sql = " select distinct pin, change_type from provlddelta"
   #  cur.execute("Select provdrkey from  h_provdr d  ")
@@ -462,7 +462,8 @@ def service_single_provider_staging(svcque,threadno):
    # conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
 
-    cur5=conn.cursor()
+       
+        
     cnt = 0
     start_trx = True
     while True:
@@ -485,6 +486,8 @@ def service_single_provider_staging(svcque,threadno):
             print "end of queue"
             #svcque.task_done()
             continue
+        cur5=conn.cursor()
+        
         sql = """
          SELECT distinct pin as provdrkey,
          pin as provdrid,
@@ -616,8 +619,8 @@ def service_single_provider_staging(svcque,threadno):
                 provider_specl[rowpract[2]].append([])  #the json ret array
                 provider_specl[rowpract[2]].append([])  #the khash array
                 
-                provider_specl[rowpract[2]][0].append(json.loads(rowpract[0]))
-                provider_specl[rowpract[2]][1].append((rowpract[1]))
+            provider_specl[rowpract[2]][0].append(json.loads(rowpract[0]))
+            provider_specl[rowpract[2]][1].append((rowpract[1]))
 
             practspecl = json.loads(rowpract[0])
             provider['specialities'].append(practspecl)   
@@ -628,7 +631,7 @@ def service_single_provider_staging(svcque,threadno):
         #bundle sql    
 
         sql = """
-          select distinct bundleid      from   
+          select distinct bundleid,cast(service_location_no as integer)      from   
            provsrvlocspec b,
          
            CBOR i
@@ -636,7 +639,7 @@ def service_single_provider_staging(svcque,threadno):
         b.practice_code = i.practicecode
            and b.pin = '%s'
            union 
-             select distinct bundleid      from   
+             select distinct bundleid ,cast(service_location_no as integer)       from   
             provsrvlocspec b,
         provsrvloc a,
         CBOR i
@@ -648,13 +651,37 @@ def service_single_provider_staging(svcque,threadno):
            and a.pin = '%s'     
         """
         cur3=conn.cursor()
+        curcbor = conn.cursor()
         start_time=time.time()
         cur3.execute(sql % (provider['provdrid'],provider['provdrid'], (provider['provdrid'])))
 
         rowspract = cur3.fetchall()
-        bundles = []        
+        bundles = []   
+        provider_bundle= {}
+     
         for rowpract in rowspract:
             cols = gettabcols(cur3.description,"bundleid")
+            
+            if not provider_bundle.has_key(rowpract[1]):
+                provider_bundle[rowpract[1]] = []
+                
+            bundlehash = {}
+            bundlehash[rowpract[0]] = []           
+            #create the items for doing "Procedures" in payload. Takes the bundle Id and gets all CBOR rows
+            cborsql = "select * from CBOR where bundleid=%s"
+            curcbor.execute(cborsql % rowpract[0])  
+            colscbor = gettabcols(curcbor.description,"*")
+            for crow in curcbor.fetchall():
+                cbormap = {}
+                for k,v in colscbor.items():
+                    try:
+                        cbormap[v] = crow[k].strip()
+                    except:
+                        cbormap[v] = crow[k]
+                
+                bundlehash[rowpract[0]].append(cbormap)
+                
+            provider_bundle[rowpract[1]].append(bundlehash)
 
             for k,v in cols.items():
                 try :
@@ -665,10 +692,7 @@ def service_single_provider_staging(svcque,threadno):
 
         provider['bundles'] =  bundles  
         #print("--- %s Bundles seconds ---" % (time.time() - start_time)) 
-
-
-
-
+        print provider_bundle
             
         #provider locns            
         cur2=conn.cursor()
@@ -884,7 +908,7 @@ def service_single_provider_staging(svcque,threadno):
         
         #her we could no map each new hl_loc to a single row in our geo search table
         
-        add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_specl,provider_langs,provider_hosp,provider_flags)
+        add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_specl,provider_langs,provider_hosp,provider_flags,provider_bundle)
         
    #     print len(json.dumps(provider))
         #jsoncompressed = zlib.compress(json.dumps(provider))
@@ -911,11 +935,11 @@ def service_single_provider_staging(svcque,threadno):
                 start_trx = True
                 print "thread %d  at: %d " % (threadno,cnt)
                 #lets try to drop and redo connect every 1000 times
-                if cnt%1000 == 0:
+                if True:
                    # conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
                    conn.close()
                    conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
-
+                   curjson = conn.cursor()
         else:
             fjson.write("%s|%s|%s\n" % (provider['provdrid'],provider['provdrkey'],provdrjson))
             cnt += 1
@@ -926,7 +950,7 @@ def service_single_provider_staging(svcque,threadno):
 
 
 
-def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_specl, provider_langs,provider_hosp,provider_flags):
+def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_specl, provider_langs,provider_hosp,provider_flags,provider_bundle):
     sqlupd = """
      update provider_loc_search
      set provdrkey = %s ,
@@ -1003,7 +1027,16 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
         if provider_flags.has_key(int(netkey)):
             pflags = ",".join(set(provider_flags[int(netkey)]))
             provdrjson['flagCode'] = pflags
-        
+ 
+        if provider_bundle.has_key(int(netkey)):
+            #get keys of bundle has
+            bid = []
+            for bn in provider_bundle[int(netkey)]:
+                bid.append(bn.keys()[0])
+            bundlstr = json.dumps(bid)
+        else:
+            bundlstr = "[]"   
+            
         provdrjson['categoryCode'] = catsstr
         provdrjson['network'] = netwkstr
         provdrjson['tier'] = tiersstr
@@ -1013,11 +1046,10 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
          
        
         
-        
         curloc.execute(sqlupd % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
                 provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], \
                 
-                json.dumps(provider['bundles']),  \
+                bundlstr,  \
                 netwksjson,\
                 netwkshashjson,\
                 netwkscathashjson ,\
@@ -1029,7 +1061,7 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
                 curloc.execute(sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
                     provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], 
                   
-                    json.dumps(provider['bundles']),  \
+                    bundlstr,  \
                     netwksjson,\
                     netwkshashjson,\
                     netwkscathashjson, \
@@ -1049,10 +1081,9 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
                                 )
         idx += 1
        # print idx
-        if idx % 1000  == 0:
+        if idx % 100  == 0:
             print "Locs:%d" % idx
             curloc.execute("commit")
- 
  
         
 def map_to_HLformat(provider):

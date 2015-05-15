@@ -504,8 +504,10 @@ def service_single_provider_staging(svcque,threadno):
             from provsrvloc a left outer join  provider_type c on trim(provider_type) = trim(c."PROVIDER_TYPE_CD")
             where pin = '%s'
         """
-        
-        cur5.execute(sql % (provdrkey))
+        try : 
+            cur5.execute(sql % (provdrkey))
+        except:
+            print sql
         
         row = cur5.fetchone()
      #   print cur5.description

@@ -43,7 +43,7 @@ def start_consumers(num_consume):
 def make_json_providers(etl_type='full'):
     
     #start threads
-    start_consumers(15)
+    start_consumers(5)
     conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
    # conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
     cur=conn3.cursor()
@@ -930,7 +930,7 @@ def service_single_provider_staging(svcque,threadno):
   #          curjson.execute (sql)
             #svcque.task_done()
             cnt += 1
-            if cnt%10 == 0:
+            if cnt%1 == 0:
                 curjson.execute("commit")
                 start_trx = True
                 print "thread %d  at: %d " % (threadno,cnt)

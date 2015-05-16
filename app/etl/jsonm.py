@@ -45,11 +45,11 @@ def make_json_providers(etl_type='full'):
     #start threads
     start_consumers(5)
     conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
-   # conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    #conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
     cur=conn3.cursor()
     #for full
     if etl_type == 'full':
-        sql = " select distinct pin from provsrvloc  "  #where pin = '0005938467'
+        sql = " select distinct pin from provsrvloc " #   where pin = '0005938467'"
     else:
         sql = " select distinct pin, change_type from provlddelta"
   #  cur.execute("Select provdrkey from  h_provdr d  ")
@@ -461,7 +461,7 @@ def service_single_provider_staging(svcque,threadno):
     if not sqlQ:
         fjson = open(dpath + "/jsonout"+str(threadno)+".dat" , "w")
     conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
-   # conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    #conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
 
        
         
@@ -963,15 +963,16 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
      netwkhashes = '%s',
      netwkcathashes = '%s',
      specialties = '%s',
-     provdrjson = '%s'
+     provdrjson = '%s',
+     procedure_zip = pgp_sym_encrypt('%s','abc','compress-algo=1, cipher-algo=aes128')
      where provdrkey = '%s'
      and service_location_number = '%s'
     """
     sqlins = """
      insert into provider_loc_search (provdrkey,service_location_number, provdrlocnlongitude,provdrlocnlatitude,
-     geom,  bundles,networks,netwkhashes,netwkcathashes,specialties,provdrjson) values 
+     geom,  bundles,networks,netwkhashes,netwkcathashes,specialties,provdrjson,procedure_zip) values 
      ('%s','%s', %s,%s, ST_GeomFromText('POINT(' ||  cast(cast('%s' as float) *-1 as varchar) || ' ' || %s || ')',4326),
-     '%s','%s','%s','%s','%s','%s')
+     '%s','%s','%s','%s','%s','%s',pgp_sym_encrypt('%s','abc','compress-algo=1, cipher-algo=aes128'))
      
   
     """
@@ -1045,7 +1046,8 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
         provdrjson['serviceLocationNumber'] = netkey
         provdrjson['ioe'] = False
         provdrjson['ioq'] = False
-        provdrjson['procedureCode'] = procedures
+        #commented out for zip storage
+      #  provdrjson['procedureCode'] = procedures
          
        
         
@@ -1058,6 +1060,7 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
                 netwkscathashjson ,\
                 speclhashjson,\
                 json.dumps(provdrjson).replace("'","''"),\
+                json.dumps(procedures),\
                 provider['provdrkey'],provider['locations'][idx]['provdrlocnid']))
         if curloc.rowcount == 0:   
             try :     
@@ -1069,7 +1072,8 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
                     netwkshashjson,\
                     netwkscathashjson, \
                     speclhashjson, \
-                    json.dumps(provdrjson).replace("'","''")
+                    json.dumps(provdrjson).replace("'","''"),\
+                    json.dumps(procedures),\
                     ))
             except:
                 print sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
@@ -1080,7 +1084,8 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
                                 netwkshashjson,\
                                 netwkscathashjson, \
                                 speclhashjson, \
-                                json.dumps(provdrjson).replace("'","''")
+                                json.dumps(provdrjson).replace("'","''"),\
+                                 json.dumps(procedures)\
                                 )
         idx += 1
        # print idx

@@ -536,7 +536,12 @@ def service_single_provider_staging(svcque,threadno):
             from provsrvloc a 
             where pin = '%s'
         """
-                
+        # for non update run do below
+        sqlcheck = " select count(*) from provider_loc_search where provdrkey = '%s' "
+        cur5.execute(sqlcheck % provdrkey)
+        row  = cur5.fetchone()
+        if row[0] > 0:
+            continue
         try : 
             cur5.execute(sql % (provdrkey))
         except:
@@ -930,10 +935,11 @@ def service_single_provider_staging(svcque,threadno):
   #          curjson.execute (sql)
             #svcque.task_done()
             cnt += 1
-            if cnt%1 == 0:
+            if cnt%10 == 0:
                 curjson.execute("commit")
                 start_trx = True
-                print "thread %d  at: %d " % (threadno,cnt)
+                if cnt%100 == 0:
+                    print "thread %d  at: %d " % (threadno,cnt)
                 #lets try to drop and redo connect every 1000 times
                 if True:
                    conn.close()
@@ -1049,8 +1055,7 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
         #commented out for zip storage
       #  provdrjson['procedureCode'] = procedures
          
-       
-        
+         
         curloc.execute(sqlupd % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
                 provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'], \
                 
@@ -1062,6 +1067,7 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
                 json.dumps(provdrjson).replace("'","''"),\
                 json.dumps(procedures),\
                 provider['provdrkey'],provider['locations'][idx]['provdrlocnid']))
+        
         if curloc.rowcount == 0:   
             try :     
                 curloc.execute(sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\

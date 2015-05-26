@@ -784,7 +784,7 @@ def service_single_provider_staging(svcque,threadno):
         
         sql = """
         select b.name as facilityName, 
-        admit_privileges as admitPrvileges ,
+        admit_privileges as admitPrivileges ,
         affil_status_code as affilStatusCode,
         cast(a.service_location_number as int),
         '' as affilFlags,

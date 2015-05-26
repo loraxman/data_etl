@@ -15,7 +15,6 @@ import requests
 import time
 import sys
 
-from elasticsearch import Elasticsearch
 
 queue =  Queue()
 threads = []
@@ -84,377 +83,6 @@ def make_json_providers(etl_type='full'):
     where a.pin = b.provdrid
     """
        
-def service_single_provider(svcque,threadno): 
-    if not sqlQ:
-        fjson = open(dpath + "/jsonout"+str(threadno)+".dat" , "w")
-    conn = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost0' password='1yamadx7'")
-    cur5=conn.cursor()
-    cnt = 0
-    start_trx = True
-    while True:
-        try:
-            provdrkey  = svcque.get()
-            if provdrkey == -99:
-                try:
-                    #issue commit for last incomplete batch
-                     if sqlQ:
-                        curjson.execute("commit")
-                     else:
-                        fjson.close()
-                     print "commit final ... thread %d  at: %d" % (threadno,cnt)
-                     #svcque.task_done()
-                     break 
-                except:
-                    #svcque.task_done()
-                    break 
-        except:
-            print "end of queue"
-            #svcque.task_done()
-            continue
-        cur5.execute("Select * from  vcprovdr where provdrkey = %d" % (provdrkey))
-        row = cur5.fetchone()
-     #   print cur5.description
-        cols = gettabcols(cur5.description,"provdr","provdrlocn")
-        #go thru qualified cols and grab from row
-        provider = {}
-        providerlocns = []
-        for k,v in cols.items():
-            try:
-                provider[v] = row[k].strip()
-            except:
-                provider[v] = row[k]
-              #provider languages
-        sql = """
-              select  distinct langname from h_provdr a, vault.h_lang e, vault.s_lang d
-              ,   vault.l_provdr_lang c
-              where 
-              a.provdrkey = c.provdrkey
-              and e.langkey = c.langkey
-              and d.langkey  = e.langkey
-             and a.provdrkey = %s  
-        """
-        sql = """
-        select distinct language_description from provlang 
-        where pin = '%s' 
-        """ 
-        cur2=conn.cursor()
-        cur2.execute(sql % (provider['provdrid']))
-        rowsloc = cur2.fetchall()
-        provider['languages'] = []
-        cols = gettabcols(cur2.description,"lang")            
-        for rowloc in rowsloc:
-            providerlangs={}
-            for k,v in cols.items():
-                try:
-                    providerlangs[v] = rowloc[k].strip()
-                except:
-                    providerlangs[v] = rowloc[k]
-                    
-        
-            provider['languages'].append(providerlangs)
-            
-        #provider locns            
-        cur2=conn.cursor()
-        start_time = time.time()
-        cur2.execute("Select * from mgeo_vcprovdrlocn b where b.provdrkey = %s " % (provider['provdrkey']))
-        rowsloc = cur2.fetchall()
-        providerlocns = []
-        
-        for rowloc in rowsloc:
-            cols = gettabcols(cur2.description,"provdrlocn")
-        
-            providerlocn = {}
-            for k,v in cols.items():
-                try:
-                    providerlocn[v] = rowloc[k].strip()
-                except:
-                    providerlocn[v] = rowloc[k]
-                    
-                  
-            providerlocns.append(providerlocn)
-        
-        provider['locations'] = providerlocns   
-        
-        
-        #print("--- %s provddrlocn seconds ---" % (time.time() - start_time)) 
-         
-        provider['specialities'] = []
-        sql = """
-            select distinct c.practspecldescr as specialty, practspeclcode as specialtyid,provdrlocnpractspeclprimspeclflag as isPrimary
-            from
-            mgeo_vcprovdrlocn b,
-            m_vcpractspecl c,
-            l_provdrlocnpractspecl_practspecl e,
-            l_provdrlocnpractspecl_provdrlocn f,
-            h_provdrlocnpractspecl g,
-            s_provdrlocnpractspecl h
-            where 
-            
-            e.practspeclkey = c.practspeclkey
-            and f.provdrlocnkey = b.provdrlocnkey  
-            and g.provdrlocnpractspeclkey = e.provdrlocnpractspeclkey
-            and g.provdrlocnpractspeclkey = f.provdrlocnpractspeclkey
-            and h.provdrlocnpractspeclkey = g.provdrlocnpractspeclkey             
-            and b.provdrkey = %d
-     
-        """
-        sql = """
-        
-
-        select distinct  
-        '{' || '"specialty":' || to_json(trim(practice_description) ) ||','
-                 '"specialtyid":' || to_json(trim(practice_code)) || ',"isPrimary":' || to_json(trim(prim_spec_ind)) || '}'
-                 from provsrvlocspec
-                 where pin = '%s'
-
-         """
-
-        cur3=conn.cursor()
-#            cur3.execute("Select * from vcpractspecl c,m_vcprovdrlocnpractspecl e where e.provdrlocnkey = %s and e.practspeclkey = c.practspeclkey" % (providerlocn['provdrlocnkey']))
-        start_time = time.time() 
-        cur3.execute(sql % (provider['provdrid']))
-        #print("--- %s Specialty seconds ---" % (time.time() - start_time)) 
-        rowspract = cur3.fetchall()
-        for rowpract in rowspract:
-
-            practspecl = json.loads(rowpract[0])
-            provider['specialities'].append(practspecl)   
-            
-        cur3.close()
-            
-        #print("--- %s Specialty seconds ---" % (time.time() - start_time)) 
-         #bundle sql    
-        sql = """   
-           select distinct bundleid      from   
-           mgeo_vcprovdrlocn b,
-           m_vcpractspecl c,
-           l_provdrlocnpractspecl_practspecl e,
-           l_provdrlocnpractspecl_provdrlocn f,
-           h_provdrlocnpractspecl g,
-           CBOR i
-           where 
-           
-           e.practspeclkey = c.practspeclkey
-           and f.provdrlocnkey = b.provdrlocnkey  
-           and g.provdrlocnpractspeclkey = e.provdrlocnpractspeclkey
-           and g.provdrlocnpractspeclkey = f.provdrlocnpractspeclkey
-           and c.practspeclcode = i.practicecode
-           and b.provdrkey = %s
-           union 
-             select distinct bundleid      from   
-             m_vcprovdr a,
-             CBOR b
-             where 
-             b.practicecode is null
-           and trim(a.provdrtype) = b.phtype
-           and a.provdrkey = %s
-        """
-        sql = """
-          select distinct bundleid      from   
-           provsrvlocspec b,
-         
-           CBOR i
-           where   
-        b.practice_code = i.practicecode
-           and b.pin = '%s'
-           union 
-             select distinct bundleid      from   
-            provsrvlocspec b,
-        provsrvloc a,
-        CBOR i
-             where 
-             b.practice_code is null
-           and trim(a.provider_type) = i.phtype
-           and b.pin = '%s'
-           and a.pin = b.pin
-           and a.pin = '%s'     
-        """
-        cur3=conn.cursor()
-        start_time=time.time()
-        cur3.execute(sql % (provider['provdrid'],provider['provdrid'], (provider['provdrid'])))
-
-        rowspract = cur3.fetchall()
-        bundles = []        
-        for rowpract in rowspract:
-            cols = gettabcols(cur3.description,"bundleid")
-
-            for k,v in cols.items():
-               try :
-                   bundles.append( rowpract[k].strip())
-               except:
-                   bundles.append( rowpract[k])
-           
-
-        provider['bundles'] =  bundles  
-        #print("--- %s Bundles seconds ---" % (time.time() - start_time)) 
-        sql = """
-            select  h.provdrname, h.provdrisfacilityflag from vault.h_provdrhospital a,
-             vault.l_provdrhospital_provdr_provdr b,
-             vault.l_provdrhospital_provdr_hospital c,
-             h_provdr d,
-             s_provdr e,
-             h_provdr g,
-             s_provdr h
-             where a.provdrhospitalkey = b.provdrhospitalkey
-             and b.provdrkey_provdr = d.provdrkey
-             and e.provdrkey = d.provdrkey
-             and a.provdrhospitalkey = c.provdrhospitalkey
-             and c.provdrkey_hospital = g.provdrkey
-             and h.provdrkey = g.provdrkey
-             and d.provdrkey = %d
-         """  
-        cur2.close()
-        cur2=conn.cursor()
-        start_time = time.time()
-        cur2.execute(sql % (provider['provdrkey']))
-        rowshosp = cur2.fetchall()
-        provider['hospitals'] = []
-        for rowloc in rowshosp:
-            providerhospitals={}
-            cols = gettabcols(cur2.description,"provdr")            
-            for k,v in cols.items():
-                try:
-                    providerhospitals[v] = rowloc[k].strip()
-                except:
-                    providerhospitals[v] = rowloc[k]
-                    
-            provider['hospitals'].append(providerhospitals)
-
-#        print("--- %s Hosp seconds ---" % (time.time() - start_time))
-        sql = """
-        select distinct c.netwkcategorycode, netwkcategorydescr
-        from 
- 
-        h_provdrlocn e,
-        vault.h_netwkcategory c,
-        vault.h_provdrlocnnetwkcategory d,
-        vault.l_provdrlocnnetwkcategory_provdrlocn f,
-        vault.l_provdrlocnnetwkcategory_netwkcategory g,
-        l_provdrlocn_provdr h,
-        vault.s_netwkcategory i
-        where  f.provdrlocnkey = e.provdrlocnkey
-        and g.netwkcategorykey = c.netwkcategorykey
-        and d.provdrlocnnetwkcategorykey = f.provdrlocnnetwkcategorykey
-        and d.provdrlocnnetwkcategorykey = g.provdrlocnnetwkcategorykey
-        and h.provdrlocnkey = e.provdrlocnkey
- 
-        and i.netwkcategorykey = c.netwkcategorykey
-        and h.provdrkey = %d
-        """
-        #Note replace below to extend out for par/Non par
-  #      sql = "select distinct category_code, current_tier, master_category_description, master_category_code, cast(cast (base_net_id_no as integer) as varchar) from staging.srvgrpprovass where pin = '%s'"
-        sql = """
-        select  distinct '{' ||  '"category_code":' || to_json(trim(category_code)) || ',' || 
-        '"current_tier":' || to_json(current_tier)  || ',' ||
-        '"master_category_code":' || to_json(trim(master_category_code)) || ',' || 
-        case 
-        when trim(master_category_description)='AEXCELP' then '"mstr_type":'||'"M"'
-        when trim(master_category_description)='AEXCEL'  then '"mstr_type":'||'"C"'
-        when strpos(master_category_description,'MULTI') > 0  then '"mstr_type":'||'"M"'
-        when strpos(master_category_description,'CONCENTRIC') > 0  then '"mstr_type":'||'"C"'
-        when strpos(master_category_description,'NATIONAL') > 0  then '"mstr_type":'||'"C"'
-        else '"mstr_type":'||'"U"'
-        end  ||  ',' 
-        '"base_net_id_no":' || '"' || to_json(cast (base_net_id_no as integer) ) || '" }',
-        md5('{' ||  '"category_code":' || to_json(trim(category_code)) || ',' || 
-        '"current_tier":' || to_json(current_tier)  || ',' ||
-         case 
-        when trim(master_category_description)='AEXCELP' then '"mstr_type":'||'"M"'
-        when trim(master_category_description)='AEXCEL'  then '"mstr_type":'||'"C"'
-        when strpos(master_category_description,'MULTI') > 0  then '"mstr_type":'||'"M"'
-        when strpos(master_category_description,'CONCENTRIC') > 0  then '"mstr_type":'||'"C"'
-        when strpos(master_category_description,'NATIONAL') > 0  then '"mstr_type":'||'"C"'
-        else '"mstr_type":'||'"U"'
-        end  ||  ',' 
-        '"base_net_id_no":' || '"' || to_json(cast (base_net_id_no as integer) ) || '" }'),
-                md5(
-        '"base_net_id_no":' || '"' || to_json(cast (base_net_id_no as integer) ) || '" }')
-        from staging.srvgrpprovass where pin = '%s';        """
-        cur2.close()
-        cur2=conn.cursor()
-        start_time = time.time()
-        cur2.execute(sql % (provider['provdrid']))
-        rowsnet = cur2.fetchall()
-  #      cols = gettabcols(cur2.description,"*")               
-        provider['networks'] = []
-        provider['netwkhashes'] = []
-        provider['netwkcathashes'] = []
-        for rowloc in rowsnet:
-           # providernetworks={}
-            providernetworks=json.loads(rowloc[0])
-            provider['networks'].append(providernetworks)
-            provider['netwkhashes'].append(rowloc[1])
-            provider['netwkcathashes'].append(rowloc[2])
-        #print("--- %s Network seconds ---" % (time.time() - start_time))
-        #provder quality program
-        sql = """
-        select qualityprogramdescr,qualityprogramcode from vault.h_qualityprogram a, 
-        vault.s_qualityprogram b,
-        vault.l_provdrlocn_qualityprogram c,
-        h_provdrlocn d,
-        s_provdrlocn e,
-        h_provdr f,
-        s_provdr g,
-        l_provdrlocn_provdr h
-        where a.qualityprogramkey = b.qualityprogramkey
-        and a.qualityprogramkey = c.qualityprogramkey
-        and d.provdrlocnkey = c.provdrlocnkey 
-        and e.provdrlocnkey = d.provdrlocnkey
-        and h.provdrkey = f.provdrkey
-        and h.provdrlocnkey = d.provdrlocnkey
-        and f.provdrkey = g.provdrkey 
-        and f.provdrkey = %d
-        """  
-        
-             
-        cur2.close()
-        cur2=conn.cursor()
-        start_time = time.time()
-        cur2.execute(sql % (provider['provdrkey']))
-        rowsnet = cur2.fetchall()
-        provider['programs'] = []
-        for rowloc in rowsnet:
-            providerprograms={}
-            cols = gettabcols(cur2.description,"quality")            
-            for k,v in cols.items():
-                try:
-                    providerprograms[v] = rowloc[k].strip()
-                except:
-                    providerprograms[v] = rowloc[k]
-                    
-            provider['programs'].append(providerprograms)
-
-
-   #     print len(json.dumps(provider))
-        #jsoncompressed = zlib.compress(json.dumps(provider))
-        #print("--- %s Quality seconds ---" % (time.time() - start_time))
-        provdrjson = json.dumps(provider)
-        provdrjson = provdrjson.replace("'","''")
-        if sqlQ:
-            curjson = conn.cursor()
-            if start_trx:
-                curjson.execute("begin") 
-                start_trx = False
-            sql = "update provider_json set provdrjson = '%s' where provdrkey = %s" % (provdrjson,provider['provdrkey'])
-            curjson.execute (sql)
-            if curjson.rowcount == 0:
-                sql = "insert into provider_json (provdrid, provdrkey,provdrjson) values ('%s','%s','%s') " % (provider['provdrid'],provider['provdrkey'],provdrjson)
-                curjson.execute (sql)
-            #curjson.execute("commit")
-#            sql = "insert into provider_json_compress (provdrid, provdrkey,provider_json_ztext) values ('%s','%s',%s) " % (provider['provdrid'],provider['provdrkey'],pypg.Binary(jsoncompressed))
-  #          curjson.execute (sql)
-            #svcque.task_done()
-            cnt += 1
-            if cnt%10 == 0:
-                    curjson.execute("commit")
-                    start_trx = True
-                    print "thread %d  at: %d " % (threadno,cnt)
-        else:
-            fjson.write("%s|%s|%s\n" % (provider['provdrid'],provider['provdrkey'],provdrjson))
-            cnt += 1
-            if cnt % 100 == 0:
-                print "thread %d  at: %d" % (threadno,cnt)
-            #svcque.task_done()
 
 #-------------------USE ONLY STAGING!
 def service_single_provider_staging(svcque,threadno): 
@@ -643,6 +271,7 @@ def service_single_provider_staging(svcque,threadno):
            CBOR i
            where   
         b.practice_code = i.practicecode
+        and i.practicecode is not null
            and b.pin = '%s'
            union 
              select distinct bundleid ,cast(service_location_no as integer)       from   
@@ -650,7 +279,7 @@ def service_single_provider_staging(svcque,threadno):
         provsrvloc a,
         CBOR i
              where 
-             b.practice_code is null
+             i.practicecode is null
            and trim(a.provider_type) = i.phtype
            and b.pin = '%s'
            and a.pin = b.pin
@@ -811,6 +440,19 @@ def service_single_provider_staging(svcque,threadno):
                 except:
                     providerhospitals[v] = rowloc[k]
                     
+            providerhospitals['facilityName'] = providerhospitals['facilityname']
+            del providerhospitals['facilityname']
+            providerhospitals['admitPrivileges']  = providerhospitals['admitprivileges']
+            del providerhospitals['admitprivileges']
+            providerhospitals['affilStatusCode'] = providerhospitals['affilstatuscode']
+            del providerhospitals['affilstatuscode']
+            providerhospitals['affilFlags'] = providerhospitals['affilflags']
+            del providerhospitals['affilflags']
+            providerhospitals['hospitalPin'] = providerhospitals['hospitalpin']
+            del providerhospitals['hospitalpin']
+            
+            
+            
             provider['hospitals'].append(providerhospitals)
             #initialize network serviceloc hash
             if not provider_hosp.has_key(rowloc[3]):

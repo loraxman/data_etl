@@ -184,7 +184,7 @@ def service_single_provider_staging(svcque,threadno):
 
               #provider languages
         sql = """
-        select distinct language_description as langname, cast (service_location_number as int) from provlang 
+        select distinct language_description as langname, cast (service_location_number as int),language_code from provlang 
         where pin = '%s' 
         """ 
         cur2=conn.cursor()

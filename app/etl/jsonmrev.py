@@ -42,13 +42,13 @@ def start_consumers(num_consume):
 def make_json_providers(etl_type='full'):
     
     #start threads
-    start_consumers(10)
+    start_consumers(9)
     conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     #conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
     cur=conn3.cursor()
     #for full
     if etl_type == 'full':
-        sql = " select distinct pin from provsrvloc  "#  where pin = '0005938467'"
+        sql = " select distinct pin from provsrvloc " #   where pin = '0005938467'"
     else:
         sql = " select distinct pin, change_type from provlddelta"
   #  cur.execute("Select provdrkey from  h_provdr d  ")
@@ -68,20 +68,6 @@ def make_json_providers(etl_type='full'):
     queue.close()
     queue.join_thread()
     
-    #below should run at end to populate geo search table
-    #need to change provider json and replace provdrkey with pin
-    sql = """
-    insert into psearch_vcprovdrlocn3
-    select pin as 
-    provdrkey ,
-    svcl_longitude as provdrlocnlongitude ,
-    svcl_latitude as provdrlocnlatitude ,
-    ST_GeomFromText('POINT(' ||  cast(cast(svcl_longitude as float) *-1 as varchar) || ' ' || svcl_latitude || ')',4326),
-    provdrjson->'specialities' ,
-    provdrjson->'bundles'
-    from provsrvloc a, provider_json b
-    where a.pin = b.provdrid
-    """
        
 
 #-------------------USE ONLY STAGING!
@@ -165,7 +151,7 @@ def service_single_provider_staging(svcque,threadno):
             where pin = '%s'
         """
         # for non update run do below
-        sqlcheck = " select count(*) from provider_loc_search2  where provdrkey = '%s' "
+        sqlcheck = " select count(*) from provider_loc_search  where provdrkey = '%s'  "
         cur5.execute(sqlcheck % provdrkey)
         row  = cur5.fetchone()
         if row[0] > 0:
@@ -380,7 +366,7 @@ def service_single_provider_staging(svcque,threadno):
                     providerlocn[v] = rowloc[k]
                     
                 sqlupd = """
-                 update provider_loc_search2
+                 update provider_loc_search
                  set provdrkey = %s ,
                  provdrlocnlongitude = %s, 
                  provdrlocnlatitude  = %s, 
@@ -396,7 +382,7 @@ def service_single_provider_staging(svcque,threadno):
                 #      providerlocn['provdrlocnlongitude'], providerlocn['provdrlocnlatitude'], json.dumps(provider['specialities']),\
                 # json.dumps(provider['bundles']), provider['provdrkey'],  providerlocn['provdrlocnid']))
                 sqlins = """
-                 insert into provider_loc_search2 (provdrkey,,service_location_number, provdrlocnlongitude,provdrlocnlatitude,
+                 insert into provider_loc_search (provdrkey,,service_location_number, provdrlocnlongitude,provdrlocnlatitude,
                  geom, specialties, bundles) values 
                  ('%s','%s', %s,%s, ST_GeomFromText('POINT(' ||  cast(cast('%s' as float) *-1 as varchar) || ' ' || %s || ')',4326),
                  '%s,'%s')"
@@ -600,7 +586,7 @@ def service_single_provider_staging(svcque,threadno):
 
 def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_specl, provider_langs,provider_hosp,provider_flags,provider_bundle):
     sqlupd = """
-     update provider_loc_search2
+     update provider_loc_search
      set provdrkey = %s ,
      service_location_number = '%s',
      provdrlocnlongitude = %s, 
@@ -617,7 +603,7 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
      and service_location_number = '%s'
     """
     sqlins = """
-     insert into provider_loc_search2 (provdrkey,service_location_number, provdrlocnlongitude,provdrlocnlatitude,
+     insert into provider_loc_search (provdrkey,service_location_number, provdrlocnlongitude,provdrlocnlatitude,
      geom,  bundles,networks,netwkhashes,netwkcathashes,specialties,provdrjson,procedure_zip) values 
      ('%s','%s', %s,%s, ST_GeomFromText('POINT(' ||  cast(cast('%s' as float) *-1 as varchar) || ' ' || %s || ')',4326),
      '%s','%s','%s','%s','%s','%s',pgp_sym_encrypt('%s','abc','compress-algo=1, cipher-algo=aes128'))

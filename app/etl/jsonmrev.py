@@ -42,13 +42,13 @@ def start_consumers(num_consume):
 def make_json_providers(etl_type='full'):
     
     #start threads
-    start_consumers(9)
+    start_consumers(2)
     conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     #conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
     cur=conn3.cursor()
     #for full
     if etl_type == 'full':
-        sql = " select distinct pin from provsrvloc " #   where pin = '0005938467'"
+        sql = " select distinct pin from provsrvloc " # where pin = '0005938467'"
     else:
         sql = " select distinct pin, change_type from provlddelta"
   #  cur.execute("Select provdrkey from  h_provdr d  ")
@@ -155,6 +155,7 @@ def service_single_provider_staging(svcque,threadno):
         cur5.execute(sqlcheck % provdrkey)
         row  = cur5.fetchone()
         if row[0] > 0:
+            print 'continue'
             continue
         try : 
             cur5.execute(sql % (provdrkey))
@@ -218,7 +219,12 @@ def service_single_provider_staging(svcque,threadno):
                  || ',"serviceLocationNumber":' || to_json(service_location_no) ||
                  '}'
                  ,
-                 trim(practice_code)
+                 case 
+                   when trim(prim_spec_ind) = 'Y' then
+                        trim(practice_code)
+                   else
+                        'not specialty'
+                   end
                 , cast(service_location_no as integer)
                 from provsrvlocspec 
                  where pin = '%s'
@@ -240,7 +246,8 @@ def service_single_provider_staging(svcque,threadno):
                 provider_specl[rowpract[2]].append([])  #the khash array
                 
             provider_specl[rowpract[2]][0].append(json.loads(rowpract[0]))
-            provider_specl[rowpract[2]][1].append((rowpract[1]))
+            if rowpract[1] != 'not specialty':   #do not add speciaty in serach that is not primary! Par does not want them
+                provider_specl[rowpract[2]][1].append((rowpract[1]))
 
             practspecl = json.loads(rowpract[0])
             provider['specialities'].append(practspecl)   
@@ -259,6 +266,7 @@ def service_single_provider_staging(svcque,threadno):
         b.practice_code = i.practicecode
         and i.practicecode is not null
            and b.pin = '%s'
+           and trim(b.prim_spec_ind) = 'Y'
            union 
              select distinct bundleid ,cast(service_location_no as integer)       from   
             provsrvlocspec b,
@@ -268,6 +276,7 @@ def service_single_provider_staging(svcque,threadno):
              i.practicecode is null
            and trim(a.provider_type) = i.phtype
            and b.pin = '%s'
+           and trim(b.prim_spec_ind) = 'Y'           
            and a.pin = b.pin
            and a.pin = '%s'     
         """
@@ -599,15 +608,20 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
      specialties = '%s',
      provdrjson = '%s',
      procedure_zip = pgp_sym_encrypt('%s','abc','compress-algo=1, cipher-algo=aes128'),
-     languages = '%s'
+     languages = '%s',
+     tier1_cat = '%s',
+     tier2_cat = '%s',
+     tier3_net = '%s',
+     allnet = '%s'
      where provdrkey = '%s'
      and service_location_number = '%s'
     """
     sqlins = """
      insert into provider_loc_search (provdrkey,service_location_number, provdrlocnlongitude,provdrlocnlatitude,
-     geom,  bundles,networks,netwkhashes,netwkcathashes,specialties,provdrjson,procedure_zip,languages) values 
+     geom,  bundles,networks,netwkhashes,netwkcathashes,specialties,provdrjson,procedure_zip,languages,tier1_cat,tier2_cat,tier3_net,allnet) values 
      ('%s','%s', %s,%s, ST_GeomFromText('POINT(' ||  cast(cast('%s' as float) *-1 as varchar) || ' ' || %s || ')',4326),
-     '%s','%s','%s','%s','%s','%s',pgp_sym_encrypt('%s','abc','compress-algo=1, cipher-algo=aes128'), '%s')
+     '%s','%s','%s','%s','%s','%s',pgp_sym_encrypt('%s','abc','compress-algo=1, cipher-algo=aes128'), '%s', 
+     '%s','%s','%s','%s')
      
   
     """
@@ -618,6 +632,9 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
     for loc in hl_locs:
         provdrjson = loc
         netkey = provider['locations'][idx]['provdrlocnid']
+        #go build tier1/cat,tier2/cate,tier3 net, and all net
+        tier1_cat,tier2_cat,tier3_net,allnet = get_par_np_info(provider['provdrkey'], netkey,curloc)
+      #  print tier1_cat,tier2_cat
         #might not have a service grouping for every location -- handle that and default empty arrays
         if provider_networkloc.has_key(int(netkey)):
             netwksjson = json.dumps(provider_networkloc[int(provider['locations'][idx]['provdrlocnid'])][0])
@@ -699,6 +716,10 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
                 json.dumps(provdrjson).replace("'","''"),\
                 json.dumps(procedures),\
                 json.dumps(lang_codes),\
+                json.dumps(tier1_cat),\
+                json.dumps(tier2_cat),\
+                json.dumps(tier3_net),\
+                json.dumps(allnet),\
                 provider['provdrkey'],provider['locations'][idx]['provdrlocnid']))
         
         if curloc.rowcount == 0:   
@@ -714,6 +735,10 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
                     json.dumps(provdrjson).replace("'","''"),\
                     json.dumps(procedures),\
                     json.dumps(lang_codes),\
+                    json.dumps(tier1_cat),\
+                    json.dumps(tier2_cat),\
+                    json.dumps(tier3_net),\
+                    json.dumps(allnet),\
                     ))
             except:
                 print sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\
@@ -734,6 +759,43 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
             curloc.execute("commit")
  
  
+def get_par_np_info(provdrkey, lockey,curloc):
+    tier1_cat = []
+    tier2_cat = []
+    tier3_net = []
+    allnet = []
+    sql = """
+    select distinct cast(base_net_id_no as integer)  from staging.srvgrpprovass where pin = '%s' and cast (service_location_no as integer) = '%s';
+    """
+    curloc.execute(sql % (provdrkey,lockey))
+    rows = curloc.fetchall()
+    for row in rows:
+        print row
+        allnet.append(row[0])
+    sql = """
+    select distinct cast(base_net_id_no as integer)  from staging.srvgrpprovass where pin = '%s' and cast (service_location_no as integer) = %s and current_tier = '3';
+    """
+    curloc.execute(sql % (provdrkey,lockey))
+    rows = curloc.fetchall()
+    for row in rows:
+        tier3_net.append(row[0])
+    sql = """
+    select distinct category_code  from staging.srvgrpprovass where pin = '%s' and cast (service_location_no as integer) = %s and current_tier = '2';
+    """
+    curloc.execute(sql % (provdrkey,lockey))
+    rows = curloc.fetchall()
+    for row in rows:
+        tier2_cat.append(row[0])
+    sql = """
+    select distinct category_code  from staging.srvgrpprovass where pin = '%s' and cast (service_location_no as integer) = %s and current_tier = '1';
+    """
+    curloc.execute(sql % (provdrkey,lockey))
+    rows = curloc.fetchall()
+    for row in rows:
+        tier1_cat.append(row[0])
+    return tier1_cat, tier2_cat,tier3_net,allnet
+
+    
 def generate_procedure_json(provider_bundle,lockey):
     procedures = []
     if not provider_bundle.has_key(lockey):

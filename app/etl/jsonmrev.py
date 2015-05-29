@@ -151,7 +151,7 @@ def service_single_provider_staging(svcque,threadno):
             where pin = '%s'
         """
         # for non update run do below
-        sqlcheck = " select count(*) from provider_loc_search  where provdrkey = '%s'  "
+        sqlcheck = " select count(*) from provider_loc_search  where provdrkey = '%s' and 1=3 "
         cur5.execute(sqlcheck % provdrkey)
         row  = cur5.fetchone()
         if row[0] > 0:
@@ -196,7 +196,7 @@ def service_single_provider_staging(svcque,threadno):
         for rowloc in rowsloc:
             if not provider_langs.has_key(rowloc[1]):
                 provider_langs[rowloc[1]] = []
-            provider_langs[rowloc[1]].append(rowloc[0].strip())
+            provider_langs[rowloc[1]].append(rowloc[0].strip()+';'+ rowloc[2].strip())
             providerlangs={}
             for k,v in cols.items():
                 try:
@@ -598,15 +598,16 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
      netwkcathashes = '%s',
      specialties = '%s',
      provdrjson = '%s',
-     procedure_zip = pgp_sym_encrypt('%s','abc','compress-algo=1, cipher-algo=aes128')
+     procedure_zip = pgp_sym_encrypt('%s','abc','compress-algo=1, cipher-algo=aes128'),
+     languages = '%s'
      where provdrkey = '%s'
      and service_location_number = '%s'
     """
     sqlins = """
      insert into provider_loc_search (provdrkey,service_location_number, provdrlocnlongitude,provdrlocnlatitude,
-     geom,  bundles,networks,netwkhashes,netwkcathashes,specialties,provdrjson,procedure_zip) values 
+     geom,  bundles,networks,netwkhashes,netwkcathashes,specialties,provdrjson,procedure_zip,languages) values 
      ('%s','%s', %s,%s, ST_GeomFromText('POINT(' ||  cast(cast('%s' as float) *-1 as varchar) || ' ' || %s || ')',4326),
-     '%s','%s','%s','%s','%s','%s',pgp_sym_encrypt('%s','abc','compress-algo=1, cipher-algo=aes128'))
+     '%s','%s','%s','%s','%s','%s',pgp_sym_encrypt('%s','abc','compress-algo=1, cipher-algo=aes128'), '%s')
      
   
     """
@@ -645,11 +646,14 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
         else:
             specljson = ""
             speclhashjson = "[]"
-            
+           
+        lang_codes = []
         if provider_langs.has_key(int(netkey)):            
             langstr = ''
             for l in provider_langs[int(netkey)]:
-                langstr +=  l.strip() + ','
+                langitems = l.split(";")  #split into description/code
+                langstr +=  langitems[0] + ','
+                lang_codes.append(langitems[1])
             langstr = langstr.strip(",") 
         else:
             langstr = ''
@@ -694,6 +698,7 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
                 speclhashjson,\
                 json.dumps(provdrjson).replace("'","''"),\
                 json.dumps(procedures),\
+                json.dumps(lang_codes),\
                 provider['provdrkey'],provider['locations'][idx]['provdrlocnid']))
         
         if curloc.rowcount == 0:   
@@ -708,6 +713,7 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
                     speclhashjson, \
                     json.dumps(provdrjson).replace("'","''"),\
                     json.dumps(procedures),\
+                    json.dumps(lang_codes),\
                     ))
             except:
                 print sqlins % (provider['provdrkey'],provider['locations'][idx]['provdrlocnid'], provider['locations'][idx]['provdrlocnlongitude'], provider['locations'][idx]['provdrlocnlatitude'],\

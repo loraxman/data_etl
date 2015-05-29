@@ -289,7 +289,7 @@ def service_single_provider_staging(svcque,threadno):
             bundlehash = {}
             bundlehash[rowpract[0]] = []           
             #create the items for doing "Procedures" in payload. Takes the bundle Id and gets all CBOR rows
-            cborsql = "select * from CBOR where bundleid=%s"
+            cborsql = "select distinct bundleid,bundlename,uk1 from CBOR where bundleid=%s"
             curcbor.execute(cborsql % rowpract[0])  
             colscbor = gettabcols(curcbor.description,"*")
             for crow in curcbor.fetchall():

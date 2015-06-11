@@ -835,7 +835,8 @@ def map_to_HLprovider(hl_locs,provider):
         "provdrmiddlename":"middleName",
         "provdrdesignationcode":"designationCode",
         "provdrname" : "name",
-        "provdrisfacilityflag":"provdrisfacilityflag"
+        "provdrisfacilityflag":"provdrisfacilityflag",
+        "provdrtype" : "provider_type"
         
     }
         

@@ -42,7 +42,7 @@ def start_consumers(num_consume):
 def make_json_providers(etl_type='full'):
     
     #start threads
-    start_consumers(2)
+    start_consumers(9)
     conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     #conn3 = pypg.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
     cur=conn3.cursor()
@@ -125,6 +125,7 @@ def service_single_provider_staging(svcque,threadno):
             designation_code as provdrdesignationcode
             from provsrvloc a , provider_type c where trim(provider_type) = trim(c."PROVIDER_TYPE_CD")
             and pin = '%s' 
+            and major_classification != 'GRP'
         """
         #above query produced memory error at some point
         #instead of outer join. If we get no rows just fill in 'N' ot facility
@@ -499,6 +500,8 @@ def service_single_provider_staging(svcque,threadno):
         provider_networkloc = {}
         for rowloc in rowsnet:
             # providernetworks={}
+            # remove these columns skip for now RWK 0602
+            continue
             netwks = json.loads(rowloc[0])
             providernetworks=netwks
 
@@ -697,7 +700,7 @@ def add_provdr_loc_table(conn, hl_locs,provider,provider_networkloc,provider_spe
             
         provdrjson['categoryCode'] = catsstr
         provdrjson['network'] = netwkstr
-        provdrjson['tier'] = tiersstr
+        provdrjson['tier'] = "0" 
         provdrjson['serviceLocationNumber'] = netkey
         provdrjson['ioe'] = False
         provdrjson['ioq'] = False
@@ -770,24 +773,23 @@ def get_par_np_info(provdrkey, lockey,curloc):
     curloc.execute(sql % (provdrkey,lockey))
     rows = curloc.fetchall()
     for row in rows:
-        print row
-        allnet.append(row[0])
+        allnet.append(str(row[0]))
     sql = """
     select distinct cast(base_net_id_no as integer)  from staging.srvgrpprovass where pin = '%s' and cast (service_location_no as integer) = %s and current_tier = '3';
     """
     curloc.execute(sql % (provdrkey,lockey))
     rows = curloc.fetchall()
     for row in rows:
-        tier3_net.append(row[0])
+        tier3_net.append(str(row[0]))
     sql = """
-    select distinct category_code  from staging.srvgrpprovass where pin = '%s' and cast (service_location_no as integer) = %s and current_tier = '2';
+    select distinct trim(category_code)  from staging.srvgrpprovass where pin = '%s' and cast (service_location_no as integer) = %s and current_tier = '2';
     """
     curloc.execute(sql % (provdrkey,lockey))
     rows = curloc.fetchall()
     for row in rows:
-        tier2_cat.append(row[0])
+        tier2_cat.append(str(row[0]))
     sql = """
-    select distinct category_code  from staging.srvgrpprovass where pin = '%s' and cast (service_location_no as integer) = %s and current_tier = '1';
+    select distinct trim(category_code)  from staging.srvgrpprovass where pin = '%s' and cast (service_location_no as integer) = %s and current_tier = '1';
     """
     curloc.execute(sql % (provdrkey,lockey))
     rows = curloc.fetchall()

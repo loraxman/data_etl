@@ -59,7 +59,8 @@ def bundle_search():
     select lower(\"PRCDR_DSCRPTN\") from 
     cpt_codes where \"PRCDR_CD\" = '%s'
     """
-    sqlicd = "select cpt_code,bundlename,descr, cast( tot as float)/ cast(count(*) over (partition by cpt_code) as float) from bundle_icd_cpt where cpt_code = '%s' order by 4 desc
+    
+    sqlicd = "select cpt_code,bundlename,descr, cast( tot as float)/ cast(count(*) over (partition by cpt_code) as float) from bundle_icd_cpt where cpt_code = '%s' order by 4 desc"
     exclude_practices=["internal medicine","general practice","family practice"]
     cur = conn.cursor()
  
@@ -271,12 +272,45 @@ def elastic_bundle():
     
     
     
+def elastic_providers():
+    es = Elasticsearch(hosts = ['localhost'])
+    conn = psycopg2.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    sql = """
+    select  trim(provider_name), trim(last_name),trim(first_name), cast(latitude as float),cast(longitude as float) from providers a, provider_service_locations b
+    where a.id = b.provider_id
+    
+    """
+    cur=conn.cursor(name='prov')
+    cur.execute(sql)
+    row = cur.fetchone()
+    docid = 10
+    while row:
+        print row
+        provdr = {}
+        provdr['Location'] = {}
+        provdr['Location']['lat'] = row[3]
+        provdr['Location']['lon'] = row[4]
+        provdr['name'] = row[0]
+        provdr['first_name'] = row[2]
+        provdr['last_name'] = row[1]
+     #   print json.dumps(provdr)
+        
+        res = es.index(index="typeahead", doc_type='providers', id=docid, body=json.dumps(provdr))
+        docid += 1
+        
+        row = cur.fetchone()
+        
+    es.indices.refresh(index="typeahead")
+        
+
+    
 sqlQ = True 
 dpath = "."         
 
 #push_to_solr()
-bundle_search()
+#bundle_search()
 #elastic_bundle()
+elastic_providers()
 
 
 

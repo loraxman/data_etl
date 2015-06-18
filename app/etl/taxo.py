@@ -153,7 +153,7 @@ def bundle_search():
 def push_to_solr():
     
     #provdrkey, locations geocodes, hospital names, specialties,provdr is facility,major clasification,name,lastname,firstname
-    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
+    conn = psycopg2.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     cur=conn.cursor(name='scrollit')
     sql = "select provdrjson from provider_json"
     cur.execute(sql)
@@ -209,7 +209,7 @@ def elastic_bundle():
     
   
     bulk_data = [] 
-    conn = psycopg2cffi.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
+    conn = psycopg2.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     sql = """
     select bundleid,bundlename,practice_descr as specialty, procedure_main as dse_term from staging.proceduremapping a,
     CBOR b
@@ -273,17 +273,17 @@ def elastic_bundle():
     
     
 def elastic_providers():
-    es = Elasticsearch(hosts = ['localhost'])
-    conn = psycopg2.connect("dbname='sandbox_rk' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'")
+    es = Elasticsearch(hosts = ['172.22.100.88'])
+    conn = psycopg2.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
     sql = """
-    select  trim(provider_name), trim(last_name),trim(first_name), cast(latitude as float),cast(longitude as float) from providers a, provider_service_locations b
+    select  trim(provider_name), trim(last_name),trim(first_name), cast(latitude as float),cast(longitude as float), a.pin  , trim(city), state, a.is_facility from providers a, provider_service_locations b
     where a.id = b.provider_id
     
     """
     cur=conn.cursor(name='prov')
     cur.execute(sql)
     row = cur.fetchone()
-    docid = 10
+    docid = 90000
     while row:
         print row
         provdr = {}
@@ -293,6 +293,11 @@ def elastic_providers():
         provdr['name'] = row[0]
         provdr['first_name'] = row[2]
         provdr['last_name'] = row[1]
+        provdr['pin'] = row[5]
+        provdr['state' ] = row[7]
+        provdr['city'] = row[6]
+        provdr['is_facility'] = row[8]
+
      #   print json.dumps(provdr)
         
         res = es.index(index="typeahead", doc_type='providers', id=docid, body=json.dumps(provdr))
@@ -309,7 +314,7 @@ dpath = "."
 
 #push_to_solr()
 #bundle_search()
-#elastic_bundle()
+elastic_bundle()
 elastic_providers()
 
 

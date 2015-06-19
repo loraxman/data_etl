@@ -271,6 +271,34 @@ def elastic_bundle():
     es.indices.refresh(index="typeahead")
     
     
+def elastic_specialty():
+    es = Elasticsearch(hosts = ['172.22.100.88'])
+    if not ( es.indices.exists('typeahead')):
+        es.indices.exists('typeahead')
+        request_body = {
+        "settings" : {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+        }
+        }
+        res = es.indices.create(index = 'typeahead', body=request_body)    
+    
+  
+    bulk_data = [] 
+    conn = psycopg2.connect("dbname='sandbox_rk' user='rogerk' port='5432' host='localhost' password='1yamadx7'")
+    cur = conn.cursor()
+    cur.execute("select * from practice_specl")
+    rows = cur.fetchall()
+    
+    docid=4000000
+    for row in rows:
+        specl={}
+        specl['specialty_id'] = row[0]
+        specl['specialty_descr'] = row[1]
+        
+        print json.dumps(specl)
+        
+        
     
 def elastic_providers():
     es = Elasticsearch(hosts = ['172.22.100.88'])
@@ -314,8 +342,9 @@ dpath = "."
 
 #push_to_solr()
 #bundle_search()
-elastic_bundle()
-elastic_providers()
+#elastic_bundle()
+#elastic_providers()
+elastic_specialty()
 
 
 

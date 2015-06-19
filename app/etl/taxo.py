@@ -298,7 +298,12 @@ def elastic_specialty():
         
         print json.dumps(specl)
         
-        
+        res = es.index(index="typeahead", doc_type='specialty', id=docid, body=json.dumps(specialty))
+        docid += 1
+
+    es.indices.refresh(index="typeahead")
+
+
     
 def elastic_providers():
     es = Elasticsearch(hosts = ['172.22.100.88'])

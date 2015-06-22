@@ -1,1 +1,1 @@
-etl.hal_workflow()
+select etl.hal_workflow();

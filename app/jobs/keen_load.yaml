@@ -23,7 +23,7 @@ job:
         - CleanKeen-1
     step3:
       name: KeenETL-3
-      type: python
+      type: SQL
       connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
       file: app/etl/exec_keenfn.sql
       description: Load Keen URL

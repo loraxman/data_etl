@@ -1,0 +1,34 @@
+job:
+  name: Keen ETL
+  jobtype: script
+  description: Load keen analytics
+  steps: 
+    step1:
+      name: CleanKeen-1
+      description: Clean keen staging 
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+      type: SQL
+      file: app/etl/clear_keenstage.sql
+      async: True
+      err: None 
+    step2:
+      name: GetURL-2
+      type: python
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+      file: app/etl/getkeenurl
+      description: Load Keen URL
+      async: True
+      err: None  
+      waits_on:
+        - CleanKeen-1
+    step3:
+      name: KeenETL-3
+      type: SQL
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+      file: app/etl/exec_keenfn.sql
+      description: Load Keen URL
+      async: True
+      err: None  
+      waits_on:
+        - GetURL-2
+      

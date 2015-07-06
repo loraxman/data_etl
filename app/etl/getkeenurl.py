@@ -26,9 +26,12 @@ def execstep(queue=None,step=None,step_pids=None):
         , "tablename" : "staging.keen_json_user_completes_provider_review" }
         ]
     
+    idx=0
     for row in keenitems:       
         jsons = get_keen_content(row['url'])
-        add_keen_table(conn, row['tablename'],jsons)
+        jsonresult = filter_by_date(conn,jsons,idx)
+        add_keen_table(conn, row['tablename'],jsonresult)
+        idx+=1
         
     sq = StepQueueEntry (step,"PASS")
     queue.put(sq) 
@@ -40,6 +43,25 @@ def get_keen_content(url):
     raw = raw.replace("\t"," ")
     return json.loads(raw)
 
+
+def filter_by_date(conn,jsons,idx):
+    cur = conn.cursor()
+    jsonresult = {}
+    jsonresult['result'] = []
+    qry=[]
+    qry.append("select max(search_time)  from edw.search_fact")
+    qry.append('select max(registration_time) from edw.registration_fact')
+    qry.append('select max(return_time) from edw.return_fact')
+    qry.append("select cast('1900-01-01 00:00:00' as timestamp)")
+    
+    cur.execute(qry[idx])
+    maxdate = cur.fetchone()[0]
+    for item in jsons['result']:
+        trxdate = dt.datetime.strptime(item['keen']['timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ')
+        if trxdate > maxdate:
+            jsonresult['result'].append(item)
+            
+    return jsonresult
 
 
 def add_keen_table(conn, tablename, j):

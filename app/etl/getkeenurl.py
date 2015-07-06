@@ -3,6 +3,7 @@ import s3util
 import psycopg2
 import urllib2
 import json
+import datetime as dt
 
 def execstep(queue=None,step=None,step_pids=None):
     step.active=True

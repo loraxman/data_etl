@@ -42,3 +42,5 @@ def execstep(queue=None,step=None,step_pids=None):
       os.system(cmd)
       cmd = "rm -rf wellmatch_production_digest_lookup"
       os.system(cmd)
+    sq = StepQueueEntry (step,"PASS")
+    queue.put(sq) 

@@ -11,23 +11,64 @@ import re
 
 #grab a file from an S3 bucket stream as std out
 
-def get_s3_file(s3filename,named_pipe=None):
+
+def get_s3_file(s3filename,bucketname,awsid,awskey,named_pipe=None,dirct=None):
+    #rgex +name+ 
+    #  [.*\Q+\E.*]/Test/
+    rgex = re.compile("/%s/" % (s3filename,))
+   # rgex = re.compile("%s+" % (s3filename,))
+    print awsid +";" +  awskey
+    AWS_ACCESS_KEY_ID=awsid
+    AWS_SECRET_ACCESS_KEY=awskey
+    s3 = boto.connect_s3(aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+    #s3 = boto.connect_s3()
+    bucket = s3.get_bucket(bucketname)
+    print bucket
+    if dir != None:
+        print dirct
+        listall = bucket.list(dirct)
+    else:
+        listall = bucket.list()
+    fout = None
+    for item in listall:
+        fname = str(item).split(",")[1].strip(">").strip()
+        if fname.find(s3filename) == -1:
+            continue
+        print fname
+        infile = fname.replace("/",".")
+        key = bucket.get_key(fname)
+        key.get_contents_to_filename(infile)
+
+    
+    
+    
+#try to stream
+def get_s3_file_stream(s3filename,bucketname,awsid,awskey,named_pipe=None,dirct=None):
 	#rgex +name+ 
-	rgex = re.compile("%s+" % (s3filename,))
-	AWS_ACCESS_KEY_ID=open("awsid.txt").read().strip()
-	AWS_SECRET_ACCESS_KEY=open("awskey.txt").read().strip()
+  #  [.*\Q+\E.*]/Test/
+	rgex = re.compile("/%s/" % (s3filename,))
+   # rgex = re.compile("%s+" % (s3filename,))
+	print awsid +";" +  awskey
+	AWS_ACCESS_KEY_ID=awsid
+	AWS_SECRET_ACCESS_KEY=awskey
 	s3 = boto.connect_s3(aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
 	#s3 = boto.connect_s3()
-	bucket = s3.get_bucket('wellmatch-healthline-provider-data')
-	
-	listall = bucket.list()
+	bucket = s3.get_bucket(bucketname)
+	print bucket
+	if dir != None:
+	   print dirct
+	   listall = bucket.list(dirct)
+	else:
+	   listall = bucket.list()
 	fout = None
 	for item in listall:
 		fname = str(item).split(",")[1].strip(">").strip()
-		if (not rgex.match(fname)):
+		#print fname
+		if fname.find(s3filename) == -1:
 			continue
-		sz = bucket.lookup(fname).size
-		print fname + ' size->' + str(sz)
+		print fname
+		key = bucket.get_key(fname)
+		key.get_contents_to_filename('test.txt')
 		totbytes = 0
 		if named_pipe:
 			infile = named_pipe
@@ -40,7 +81,7 @@ def get_s3_file(s3filename,named_pipe=None):
 				print e
 				pass # if exists don't care
 		else:
-			infile = fname
+			infile = fname.replace("/",".")
 			fout = open(str(infile),"w")
 
 		print 'transferring %s...' % fname
@@ -49,7 +90,9 @@ def get_s3_file(s3filename,named_pipe=None):
 		#retry logic is for getting back Incomplete read from S3.
 		#retry 10x until give up
 		retry_http = 0
-		with smart_open.smart_open('s3://'+AWS_ACCESS_KEY_ID+':' + AWS_SECRET_ACCESS_KEY + '@wellmatch-healthline-provider-data/' + fname) as fin:
+		sz = bucket.lookup(fname).size
+		print 's3://'+AWS_ACCESS_KEY_ID+':' + AWS_SECRET_ACCESS_KEY + '@'+bucketname+'/' + fname
+		with smart_open.smart_open('s3://'+AWS_ACCESS_KEY_ID+':' + AWS_SECRET_ACCESS_KEY + '@'+bucketname+'/' + fname) as fin:
 			#read 50M in
 			#then read do a single readline to make sure we got complete records before sending to pipe
 			while not eof:

@@ -41,4 +41,14 @@ job:
       err: None  
       waits_on:
         - GetURL-2
-      
+    step5:
+      name: Load Stage digest-5
+      type: SQL
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+      file: app/etl/load_digest_raw.sql
+      description: Load Member Digest 
+      async: True
+      err: None  
+      waits_on:
+        - GetMemberDigest-2
+

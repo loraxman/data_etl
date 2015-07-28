@@ -6,6 +6,7 @@ import datetime as dt
 import imp
 import datetime as dt
 import os
+import psycopg2
 from datetime import timedelta
 
 def execstep(queue=None,step=None,step_pids=None):
@@ -13,6 +14,9 @@ def execstep(queue=None,step=None,step_pids=None):
     for wstep in step.wait_steps:
         for wpid in step_pids[wstep]:
             wpid.join()
+
+    conn = psycopg2.connect(step.connectdb)
+    cur = conn.cursor()
 
     py_mod = imp.load_source("wmbackupaws","./wmbackupaws.py")
     #wellmatch_production/wellmatch_production_digest_lookup/2015.07.12.00.00.04/wellmatch_production_digest_lookup.tar 
@@ -26,13 +30,11 @@ def execstep(queue=None,step=None,step_pids=None):
     items = os.listdir(".")
     fname = None
     for item in items:
-      print item, filepattern[filepattern.find("/")+1:].replace("/","."), filepattern.replace("/",".")
       if item.find(filepattern.replace("/",".")) != -1:
         fname=item
         break
     if fname:
       cmd = "tar -xvf %s " % fname
-      print cmd
       os.system(cmd)
       cmd = "tar -xvf wellmatch_production_digest_lookup/archives/digest_lookup.tar.gz"
       os.system(cmd)
@@ -42,5 +44,6 @@ def execstep(queue=None,step=None,step_pids=None):
       os.system(cmd)
       cmd = "rm -rf wellmatch_production_digest_lookup"
       os.system(cmd)
+
     sq = StepQueueEntry (step,"PASS")
     queue.put(sq) 

@@ -1,34 +1,23 @@
 job:
-  name: Keen ETL
+  name: Tester ETL
   jobtype: script
-  description: Load keen analytics
+  description: testing various staging
   steps: 
-    step1:
-      name: CleanKeen-1
-      description: Clean keen staging 
-      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
-      type: SQL
-      file: app/etl/clear_keenstage.sql
-      async: True
-      err: None 
-    step2:
-      name: GetURL-2
+    step3:
+      name: GetMemberDigest-2
       type: python
       connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
-      file: app/etl/getkeenurl
-      description: Load Keen URL
+      file: app/etl/member_digest
+      description: Load  WM Digest
       async: True
       err: None  
-      waits_on:
-        - CleanKeen-1
-    step3:
-      name: KeenETL-3
+    step5:
+      name: Load Stage digest-5
       type: SQL
       connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
-      file: app/etl/exec_keenfn.sql
-      description: Load Keen URL
+      file: app/etl/load_digest_raw.sql
+      description: Load Member Digest 
       async: True
       err: None  
       waits_on:
-        - GetURL-2
-      
+        - GetMemberDigest-2

@@ -14,7 +14,7 @@ def execstep(queue=None,step=None,step_pids=None):
         for wpid in step_pids[wstep]:
             wpid.join()
 
-    py_mod = imp.load_source("wmbackupaws","../../wmbackupaws.py")
+    py_mod = imp.load_source("wmbackupaws","./wmbackupaws.py")
     #wellmatch_production/wellmatch_production_digest_lookup/2015.07.12.00.00.04/wellmatch_production_digest_lookup.tar 
     #get yesterdays file
     #download

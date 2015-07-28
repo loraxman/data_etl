@@ -22,6 +22,16 @@ job:
       waits_on:
         - CleanKeen-1
     step3:
+      name: GetMemberDigest-2
+      type: python
+      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
+      file: app/etl/member_digest
+      description: Load  WM Digest
+      async: True
+      err: None  
+      waits_on:
+        - CleanKeen-1
+    step4:
       name: KeenETL-3
       type: SQL
       connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'

@@ -12,7 +12,7 @@ import re
 #grab a file from an S3 bucket stream as std out
 
 
-def get_s3_file(s3filename,bucketname,awsid,awskey,named_pipe=None,dirct=None):
+def get_s3_file(s3filename,bucketname,awsid,awskey,named_pipe=None,dirct=None,destination_dir="./"):
     #rgex +name+ 
     #  [.*\Q+\E.*]/Test/
     rgex = re.compile("/%s/" % (s3filename,))
@@ -37,11 +37,9 @@ def get_s3_file(s3filename,bucketname,awsid,awskey,named_pipe=None,dirct=None):
         print fname
         infile = fname.replace("/",".")
         key = bucket.get_key(fname)
-        key.get_contents_to_filename(infile)
+        key.get_contents_to_filename(destination_dir+infile)
 
-    
-    
-    
+
 #try to stream
 def get_s3_file_stream(s3filename,bucketname,awsid,awskey,named_pipe=None,dirct=None):
 	#rgex +name+ 

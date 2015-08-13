@@ -11,16 +11,6 @@ job:
       file: app/etl/clear_keenstage.sql
       async: True
       err: None 
-    step2:
-      name: GetURL-2
-      type: python
-      connectdb: dbname='HAL' user='etlrobot' port='5432' host='localhost' password='N01nose'
-      file: app/etl/getkeenurl
-      description: Load Keen URL
-      async: True
-      err: None  
-      waits_on:
-        - CleanKeen-1
     step3:
       name: GetMemberDigest-2
       type: python

@@ -30,7 +30,7 @@ job:
       async: True
       err: None  
       waits_on:
-        - GetURL-2
+        - Load Stage digest-5 
     step5:
       name: Load Stage digest-5
       type: SQL

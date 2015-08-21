@@ -1,0 +1,13 @@
+job:
+  name: EPDB ETL
+  jobtype: unittest
+  description: load epdb
+  steps: 
+    step2:
+      name: Download from S3-2
+      type: python
+      connectdb: dbname='opdb_dev' user='A727200' port='5432' host='192.168.1.20' password=''
+      file: app/etl/preprocess-epdb
+      description: Load EPDB files from S3
+      async: True
+      err: None  

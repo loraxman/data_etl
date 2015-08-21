@@ -1,0 +1,152 @@
+job:
+  name: EPDB ETL
+  jobtype: script
+  description: load epdb
+  steps: 
+    step1:
+      name: CleanStaging-1
+      description: Clean staginging 
+      connectdb: dbname='OPDB' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      type: SQL
+      file: app/etl/truncate_epdb_staging.sql
+      async: True
+      err: None 
+    step2:
+      name: CleanProvider-2
+      description: Clean provider target 
+      connectdb: dbname='OPDB' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      type: SQL
+      file: app/etl/truncate_epdb_providers.sql
+      async: True
+      err: None 
+    step2.1:
+      name: Download from S3-3
+      type: python
+      connectdb: dbname='OPDB' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      file: app/etl/epdb_s3
+      description: Load EPDB files from S3
+      async: True
+      err: None  
+      waits_on:
+        - CleanStaging-1
+    step3:
+      name: Preprocess Files-4
+      type: python
+      connectdb: dbname='OPDB' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      file: app/etl/preprocess_epdb
+      description: Clean files and PG copy
+      async: True
+      err: None  
+      waits_on:
+        - Download from S3-3
+    step4:
+      name: Build needed indexes SQL-5
+      type: SQL
+      connectdb: dbname='OPDB' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      file: app/etl/create_srvgrp_index.sql
+      description: Create indexes for provider loc
+      async: True
+      err: None  
+      waits_on:
+        - Preprocess Files-4
+    step5:
+      name: Fill Delta file to full SQL-6
+      type: SQL
+      connectdb: dbname='OPDB' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      file: app/etl/delta_full.sql
+      description: set delta file to all
+      async: True
+      err: None  
+      waits_on:
+        - Preprocess Files-4
+    step6:
+      name: Load provider and locations SQL-7
+      type: SQL
+      connectdb: dbname='OPDB' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      file: app/etl/load_provider_loc.sql
+      description: Load provider and locations
+      async: True
+      err: None  
+      waits_on:
+        - Build needed indexes SQL-5
+    step7:
+      name: Load provider hospital SQL-8
+      type: SQL
+      connectdb: dbname='OPDB' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      file: app/etl/load_provider_hospital_aff.sql
+      description: Load provider hospitals 
+      async: True
+      err: None  
+      waits_on:
+        - Load provider and locations SQL-7
+    step8:
+      name: Load provider and language SQL-9
+      type: SQL
+      connectdb: dbname='OPDB' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      file: app/etl/load_provider_language.sql
+      description: Load provider languages
+      async: True
+      err: None  
+      waits_on:
+        - Load provider hospital SQL-8
+    step9:
+      name: Load service grouping networks SQL-10
+      type: SQL
+      connectdb: dbname='OPDB' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      file: app/etl/load_provider_network_par.sql
+      description: Load service grouping
+      async: True
+      err: None  
+      waits_on:
+        - Load provider and language SQL-9
+    step10:
+      name: Load networks roles and specialties SQL-11
+      type: SQL
+      connectdb: dbname='OPDB' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      file: app/etl/load_provider_networks.sql
+      description: Load network roles
+      async: True
+      err: None  
+      waits_on:
+        - Load service grouping networks SQL-10
+    step11:
+      name: Load provider programs SQL-12
+      type: SQL
+      connectdb: dbname='OPDB' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      file: app/etl/load_provider_service_location_programs.sql
+      description: Load provider programs
+      async: True
+      err: None  
+      waits_on:
+        - Load networks roles and specialties SQL-11
+    step12:
+      name: Load provider location specialties SQL-13
+      type: SQL
+      connectdb: dbname='OPDB' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      file: app/etl/load_provider_specialties.sql
+      description: Load provider location specialties
+      async: True
+      err: None  
+      waits_on:
+        - Load provider programs SQL-12
+    step13:
+      name: Do delta deletes SQL-14
+      type: SQL
+      connectdb: dbname='OPDB' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      file: app/etl/load_provider_delete.sql
+      description: delete delta 'del'
+      async: True
+      err: None  
+      waits_on:
+        - Load provider location specialties SQL-13
+    step14:
+      name: Create denorm search table
+      type: python
+      connectdb: dbname='OPDB' user='rogerk' port='9000' host='192.168.1.20' password='1yamadx7'
+      file: app/etl/provider_loc_search.py
+      description: fires off a multi-process python job
+      async: True
+      err: None  
+      waits_on:
+        - Load provider location specialties SQL-13
+

@@ -1,0 +1,12 @@
+truncate table providers cascade;
+truncate table provider_languages;
+truncate table provider_service_locations cascade;
+truncate table provider_hospital_affilliations cascade;
+truncate table provider_loc_search cascade;
+truncate table provider_search_storm;
+truncate table provider_service_location_par_networks cascade;
+truncate table provider_service_location_programs cascade;
+truncate table provider_service_location_specialties cascade;
+truncate table provider_service_location_network_specialties cascade;
+truncate table provider_service_location_network_products cascade;
+

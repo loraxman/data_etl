@@ -1,7 +1,10 @@
 
 import threading
 import multiprocessing
-import psycopg2
+try:
+  import psycopg2
+except:
+  import psycopg2cffi
 import yaml
 import Queue
 import jsonpickle
@@ -105,7 +108,10 @@ class Job:
 				if self.jobtype == "unittest":
 					#get the first step and do its db connect.
 					if passed_dbconn == None:
+                                            try:
 						passed_dbconn = psycopg2.connect(step.connectdb)
+                                            except:
+						passed_dbconn = psycopg2cffi.connect(step.connectdb)
 					execstep(self.queue,step.file,step,None,passed_dbconn)	
 					self.pids.append(0) #add to fake pid so it does results 
 				
